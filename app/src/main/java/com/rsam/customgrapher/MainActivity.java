@@ -10,7 +10,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
@@ -49,18 +52,15 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     LinkedList<Integer> ampList = new LinkedList<>();
 
-    private MediaRecorder recorder = new MediaRecorder();
-    private Handler handler = new Handler();
-    final Runnable updater = new Runnable() {
-        public void run() {
-            if (doRun) handler.postDelayed(this, 1);
-            int maxAmplitude = recorder.getMaxAmplitude();
-            if (maxAmplitude != 0) {
-//                Log.d("","ValB " + maxAmplitude);
-                addData(maxAmplitude);
-            }
-        }
-    };
+    private static final int RECORDER_SAMPLERATE = 44100;
+    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
+    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+    private AudioRecord recorder = null;
+    private Thread recordingThread = null;
+//    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
+    private static final int BufferElements2Rec = 1024;
+    private static final int BytesPerElement = 2; // 2 bytes in 16bit format
+    private static final int downSample = 70; // Get every x-th sample
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -73,12 +73,18 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //	public static float zoomVer = 1;		// Settings for waveform vertical scale
     public static boolean doRun = true;     // Run/Pause functionality
 
+    TextView tBPM;
+    TextView tSPO2;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        tBPM = findViewById(R.id.textBPM);
+        tSPO2 = findViewById(R.id.textSPO2);
 
         applySettings();    // Apply settings variables to layout
 
@@ -87,22 +93,20 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             @Override
             public void onClick(View view) {
                 if (doRun) {
-                    handler.removeCallbacks(updater);
+                    doRun = false;
+                    stopRecording();
                     Toast.makeText(MainActivity.this, getString(R.string.toast_pause),
                             Toast.LENGTH_SHORT).show();
                     fab.setImageResource(android.R.drawable.ic_media_play);
-                    doRun = false;
                 } else {
-                    handler.postDelayed(updater, 1);
+                    doRun = true;
+                    startRecording();
                     Toast.makeText(MainActivity.this, getString(R.string.toast_resume),
                             Toast.LENGTH_SHORT).show();
                     fab.setImageResource(android.R.drawable.ic_media_pause);
-                    doRun = true;
                 }
             }
         });
-
-//        startRecording();
 
 //        recyclerView = (RecyclerView)findViewById(R.id.recycler);
 //        recyclerView.setVisibility(View.GONE);
@@ -111,6 +115,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         simpleWaveform.setVisibility(View.VISIBLE);
 
         amplitudeWave();
+
+        int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
+                RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+
+//        startRecording(); Already in onResume()
     }
 
     @Override
@@ -129,32 +138,75 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         PermissionsActivity.startActivityForResult(this, REQUEST_CODE, PERMISSIONS);
     }
 
+//    private void startRecording() {
+//        try {
+//            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+//            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+//            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+//            recorder.setOutputFile("/dev/null");
+//            recorder.prepare();
+//            recorder.start();
+//        } catch (IllegalStateException | IOException ignored) {
+//        }
+//    }
+
     private void startRecording() {
+//        for (int i = 0; i < BufferElements2Rec; i++) {
+//            addData(randomInt(0,4096));
+//        }
+        final short sData[] = new short[BufferElements2Rec];
         try {
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-            recorder.setOutputFile("/dev/null");
-            recorder.prepare();
-            recorder.start();
-        } catch (IllegalStateException | IOException ignored) {
+            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                    RECORDER_SAMPLERATE, RECORDER_CHANNELS,
+                    RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
+
+            recorder.startRecording();
+//            doRun = true;
+            recordingThread = new Thread(new Runnable() {
+                public void run() {
+//                    synchronized (this) {
+                        while (doRun) {
+//                        Log.d("","RECORDING RECORDING ");
+                            recorder.read(sData, 0, BufferElements2Rec);
+//                        Log.d("", "ValA " + sData[0]);
+//                        addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
+                            addArray(sData);
+                        }
+//                    }
+                }
+            }, "AudioRecorder Thread");
+            recordingThread.start();
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
         }
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        handler.removeCallbacks(updater);
-        recorder.stop();
-        recorder.reset();
-        recorder.release();
+    private void stopRecording() {
+        // stops the recording activity
+        if (null != recorder) {
+//            doRun = false;
+            recorder.stop();
+            recorder.release();
+            recorder = null;
+            recordingThread = null;
+        }
     }
 
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        handler.post(updater);
-    }
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//        handler.removeCallbacks(updater);
+//        recorder.stop();
+//        recorder.reset();
+//        recorder.release();
+//    }
+//
+//    @Override
+//    public void onWindowFocusChanged(boolean hasFocus) {
+//        super.onWindowFocusChanged(hasFocus);
+//        handler.post(updater);
+//    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -231,21 +283,21 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     private void applySettings() {
         // Apply settings variables to layout
-        TextView text = findViewById(R.id.textBPM);
+        //TextView text = findViewById(R.id.textBPM);
         if (setBPM) {
-            text.setVisibility(View.VISIBLE);
+            tBPM.setVisibility(View.VISIBLE);
             // Also enable calculation
         } else {
-            text.setVisibility(View.INVISIBLE);
+            tBPM.setVisibility(View.INVISIBLE);
             // Also disable calculation
         }
 
-        text = findViewById(R.id.textSPO2);
+        //text = findViewById(R.id.textSPO2);
         if (setSPO2) {
-            text.setVisibility(View.VISIBLE);
+            tSPO2.setVisibility(View.VISIBLE);
             // Also enable calculation
         } else {
-            text.setVisibility(View.INVISIBLE);
+            tSPO2.setVisibility(View.INVISIBLE);
             // Also disable calculation
         }
 
@@ -342,7 +394,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         //define if the unit is px or percent of the view's height
         simpleWaveform.modeHeight = SimpleWaveform.MODE_HEIGHT_PX;
         //define where is the x-axis in y-axis
-        simpleWaveform.modeZero = SimpleWaveform.MODE_ZERO_BOTTOM;
+        simpleWaveform.modeZero = SimpleWaveform.MODE_ZERO_CENTER;
         //if show bars?
         simpleWaveform.showBar = false;
 
@@ -384,6 +436,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                 canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
             }
         };
+
 //        simpleWaveform.progressTouch = new SimpleWaveform.ProgressTouch() {
 //            @Override
 //            public void progressTouch(int progress, MotionEvent event) {
@@ -419,15 +472,28 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //        }).start();
     }
 
+    public void addArray(short[] arr) {
+        int arrSize = arr.length;
+        for (int i = 0; i < arrSize; i++) {
+//            Log.d("","ValA " + arr[i]);
+            if (i % downSample == 0) addData(arr[i]);    // Add every x data
+            arr[i] = 0;
+        }
+        simpleWaveform.postInvalidate();
+    }
+
     public void addData(int value) {
         value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
         ampList.addFirst(value);
-        Log.d("","Size " + ampList.size());
+//        Log.d("","Size " + ampList.size());
         if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
-            ampList.removeLast();
-            Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
+            synchronized (this) {
+                ampList.removeLast();
+//                Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
+            }
         }
-        simpleWaveform.refresh();
+//        simpleWaveform.postInvalidate();
+//        simpleWaveform.refresh();
     }
 
     private void recyclerWave() {
