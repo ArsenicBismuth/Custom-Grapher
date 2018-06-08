@@ -1,8 +1,7 @@
 package com.rsam.customgrapher;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
-import java.util.Random;
 
 import android.Manifest;
 import android.content.DialogInterface;
@@ -13,35 +12,28 @@ import android.graphics.PorterDuff;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.rsam.customgrapher.permissions.PermissionsActivity;
 import com.rsam.customgrapher.permissions.PermissionsChecker;
 
-public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDataCaptureListener*/{
+public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDataCaptureListener*/ {
 
     private static final int REQUEST_CODE = 0;
     static final String[] PERMISSIONS = new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.MODIFY_AUDIO_SETTINGS};
 
     private static final int MAX_AMPLITUDE = 16384;
     SimpleWaveform simpleWaveform;
-    RecyclerView recyclerView;
-    LinearLayoutManager linearLayoutManager;
 
     Paint barPencilFirst = new Paint();
     Paint barPencilSecond = new Paint();
@@ -56,11 +48,13 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
-    private Thread recordingThread = null;
-//    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
+    private static Thread recordingThread = null;
+    //    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BufferElements2Rec = 1024;
-    private static final int BytesPerElement = 2; // 2 bytes in 16bit format
-    private static final int downSample = 70; // Get every x-th sample
+    private static final int BytesPerElement = 2;   // 2 bytes in 16bit format
+    private static final int downSample = 140;      // Get every x-th sample
+
+    private static long dataNum = 0;         // Keep the data count, beware it'll overflow
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -69,9 +63,12 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public static boolean setBPM = true;    // Settings for BPM calculation
     public static boolean setSPO2 = true;   // Settings for BPM calculation
     public static boolean setDebug = false; // Settings for debug message
-//	public static float zoomHor = 1;		// Settings for waveform horizontal scale
+    //	public static float zoomHor = 1;		// Settings for waveform horizontal scale
 //	public static float zoomVer = 1;		// Settings for waveform vertical scale
     public static boolean doRun = true;     // Run/Pause functionality
+    public static boolean fabState = true;  // Preserving floating button state on pause
+
+    public static TimeDiff timeScreen;
 
     TextView tBPM;
     TextView tSPO2;
@@ -86,7 +83,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         tBPM = findViewById(R.id.textBPM);
         tSPO2 = findViewById(R.id.textSPO2);
 
-        applySettings();    // Apply settings variables to layout
+        setDebugMessages("",0); // Empty values
+        applySettings();                        // Apply settings variables to layout
 
         final FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -94,12 +92,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             public void onClick(View view) {
                 if (doRun) {
                     doRun = false;
+                    fabState = false;
                     stopRecording();
                     Toast.makeText(MainActivity.this, getString(R.string.toast_pause),
                             Toast.LENGTH_SHORT).show();
                     fab.setImageResource(android.R.drawable.ic_media_play);
                 } else {
                     doRun = true;
+                    fabState = true;
                     startRecording();
                     Toast.makeText(MainActivity.this, getString(R.string.toast_resume),
                             Toast.LENGTH_SHORT).show();
@@ -108,9 +108,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         });
 
-//        recyclerView = (RecyclerView)findViewById(R.id.recycler);
-//        recyclerView.setVisibility(View.GONE);
-
         simpleWaveform = (SimpleWaveform) findViewById(R.id.simpleWaveform);
         simpleWaveform.setVisibility(View.VISIBLE);
 
@@ -118,6 +115,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+
+        timeScreen = new TimeDiff();
 
 //        startRecording(); Already in onResume()
     }
@@ -130,8 +129,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         if (checker.lacksPermissions(PERMISSIONS)) {
             startPermissionsActivity();
         } else {
-            startRecording();
+            doRun = fabState;
+            if (doRun) startRecording();
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        doRun = false;
+        stopRecording();
     }
 
     private void startPermissionsActivity() {
@@ -151,9 +158,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //    }
 
     private void startRecording() {
-//        for (int i = 0; i < BufferElements2Rec; i++) {
-//            addData(randomInt(0,4096));
-//        }
+
         final short sData[] = new short[BufferElements2Rec];
         try {
             recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
@@ -161,35 +166,100 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                     RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
 
             recorder.startRecording();
-//            doRun = true;
             recordingThread = new Thread(new Runnable() {
+                @Override
                 public void run() {
-//                    synchronized (this) {
-                        while (doRun) {
-//                        Log.d("","RECORDING RECORDING ");
-                            recorder.read(sData, 0, BufferElements2Rec);
-//                        Log.d("", "ValA " + sData[0]);
-//                        addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
-                            addArray(sData);
+
+                    while (doRun) {
+                        try {
+                            Thread.sleep(1);
+                        } catch (Exception e) {
                         }
-//                    }
+
+                        recorder.read(sData, 0, BufferElements2Rec);
+                        Log.d("", "ValA " + sData[0]);
+
+                        // New, separate, UI Thread
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+//                                Log.d("", "ValA " + sData[0]);
+//                                addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
+
+                                addArray(sData);
+                                setDebugMessages(String.valueOf(Collections.max(ampList)),1);
+                                setDebugMessages(String.valueOf(dataNum),3);
+                                simpleWaveform.refresh();
+                            }
+                        });
+                    }
                 }
             }, "AudioRecorder Thread");
             recordingThread.start();
+
+//            waveThread = new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//
+//                    while (doRun) {
+//                        try {
+//                            Thread.sleep(1);
+//                        } catch (Exception e) {
+//                        }
+//
+//                        runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+////                                Log.d("", "ValA " + sData[0]);
+////                                addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
+//
+//                                addArray(sData);
+//                                if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
+//                                    ampList.removeLast();
+//                                    Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
+//                                }
+//                                simpleWaveform.refresh();
+//                            }
+//                        });
+//                    }
+//                }
+//            }, "Waveform Thread");
+//            waveThread.start();
+
         } catch (IllegalStateException e) {
             e.printStackTrace();
         }
+
     }
 
     private void stopRecording() {
         // stops the recording activity
         if (null != recorder) {
-//            doRun = false;
             recorder.stop();
             recorder.release();
             recorder = null;
             recordingThread = null;
         }
+    }
+
+    public void addArray(short[] arr) {
+        int arrSize = arr.length;
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addData(arr[i]);    // Add every x data
+            arr[i] = 0;
+        }
+//        simpleWaveform.postInvalidate();    // Refresh only every every batch
+    }
+
+    public void addData(int value) {
+        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
+        ampList.addFirst(value);
+        if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
+            ampList.removeLast();
+        }
+        dataNum++;  // Increment data count
+//        simpleWaveform.postInvalidate();
+//        simpleWaveform.refresh();
     }
 
 //    @Override
@@ -230,50 +300,50 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             // Also, see strings.xml to see the settings content (R.array.settings_content)
             AlertDialog.Builder dialog = new AlertDialog.Builder(this);
             dialog.setTitle(getString(R.string.action_settings))
-                .setMultiChoiceItems(R.array.settings_content, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
-                        if (isChecked) {
-                            // If the user checked the item, set it to true in the items array
-                            selectedItems[indexSelected] = true;
-                        } else {
-                            // Else, if the item is unchecked, set it to false in the items array
-                            selectedItems[indexSelected] = false;
+                    .setMultiChoiceItems(R.array.settings_content, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
+                            if (isChecked) {
+                                // If the user checked the item, set it to true in the items array
+                                selectedItems[indexSelected] = true;
+                            } else {
+                                // Else, if the item is unchecked, set it to false in the items array
+                                selectedItems[indexSelected] = false;
+                            }
                         }
-                    }
-                })
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int id) {
-                        // Apply settings to variables
-                        setBPM = selectedItems[0];
-                        setSPO2 = selectedItems[1];
-                        setDebug = selectedItems[2];
+                    })
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int id) {
+                            // Apply settings to variables
+                            setBPM = selectedItems[0];
+                            setSPO2 = selectedItems[1];
+                            setDebug = selectedItems[2];
 
-                        // Apply settings variables to layout
-                        applySettings();
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int id) {
-                        // Don't apply settings
-                    }
-                })
-                .show();
-                return true;
+                            // Apply settings variables to layout
+                            applySettings();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int id) {
+                            // Don't apply settings
+                        }
+                    })
+                    .show();
+            return true;
         }
 
         if (id == R.id.action_about) {
             AlertDialog.Builder dialog = new AlertDialog.Builder(this);
             dialog.setTitle(getString(R.string.action_about))
-                .setMessage(getString(R.string.about_content))
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // continue with delete
-                    }
-                })
-                .show();
+                    .setMessage(getString(R.string.about_content))
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // continue with delete
+                        }
+                    })
+                    .show();
 
             return true;
         }
@@ -282,30 +352,32 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     }
 
     private void applySettings() {
+
         // Apply settings variables to layout
-        //TextView text = findViewById(R.id.textBPM);
+        View layout = findViewById(R.id.layoutBPM);
         if (setBPM) {
-            tBPM.setVisibility(View.VISIBLE);
+            layout.setVisibility(View.VISIBLE);
             // Also enable calculation
         } else {
-            tBPM.setVisibility(View.INVISIBLE);
+            // Remove as a layout rather than just changing visibility
+            layout.setVisibility(View.GONE);
             // Also disable calculation
         }
 
-        //text = findViewById(R.id.textSPO2);
+        layout = findViewById(R.id.layoutSPO2);
         if (setSPO2) {
-            tSPO2.setVisibility(View.VISIBLE);
+            layout.setVisibility(View.VISIBLE);
             // Also enable calculation
         } else {
-            tSPO2.setVisibility(View.INVISIBLE);
+            layout.setVisibility(View.GONE);
             // Also disable calculation
         }
 
-        View debugLayout = findViewById(R.id.layoutDebug);
+        layout = findViewById(R.id.layoutDebug);
         if (setDebug) {
-            debugLayout.setVisibility(View.VISIBLE);
+            layout.setVisibility(View.VISIBLE);
         } else {
-            debugLayout.setVisibility(View.INVISIBLE);
+            layout.setVisibility(View.INVISIBLE);
         }
 
 //        setPower(valAvg, valPeak); // Refresh the power texts
@@ -349,27 +421,27 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             case 0:
                 // Clear
                 text = findViewById(R.id.textDebug1);
-                text.setText(getString(R.string.debug_content_1));
+                text.setText(String.format(getString(R.string.debug_content_1),""));
                 text = findViewById(R.id.textDebug2);
-                text.setText(getString(R.string.debug_content_2));
+                text.setText(String.format(getString(R.string.debug_content_2),""));
                 text = findViewById(R.id.textDebug3);
-                text.setText(getString(R.string.debug_content_3));
+                text.setText(String.format(getString(R.string.debug_content_3),""));
                 break;
             case 1:
                 // Immediately stop if no debugging, better performance
                 if (!setDebug) return;
                 text = findViewById(R.id.textDebug1);
-                text.setText(getString(R.string.debug_content_1) + message);
+                text.setText(String.format(getString(R.string.debug_content_1), message));
                 break;
             case 2:
                 // Immediately stop if no debugging, better performance
                 if (!setDebug) return;
                 text = findViewById(R.id.textDebug2);
-                text.setText(getString(R.string.debug_content_2) + message);
+                text.setText(String.format(getString(R.string.debug_content_2), message));
                 break;
             case 3:
                 text = findViewById(R.id.textDebug3);
-                text.setText(getString(R.string.debug_content_3) + message);
+                text.setText(String.format(getString(R.string.debug_content_3), message));
                 break;
         }
     }
@@ -437,6 +509,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         };
 
+        // Important example, don't remove
 //        simpleWaveform.progressTouch = new SimpleWaveform.ProgressTouch() {
 //            @Override
 //            public void progressTouch(int progress, MotionEvent event) {
@@ -470,122 +543,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                }
 //            }
 //        }).start();
-    }
-
-    public void addArray(short[] arr) {
-        int arrSize = arr.length;
-        for (int i = 0; i < arrSize; i++) {
-//            Log.d("","ValA " + arr[i]);
-            if (i % downSample == 0) addData(arr[i]);    // Add every x data
-            arr[i] = 0;
-        }
-        simpleWaveform.postInvalidate();
-    }
-
-    public void addData(int value) {
-        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
-        ampList.addFirst(value);
-//        Log.d("","Size " + ampList.size());
-        if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
-            synchronized (this) {
-                ampList.removeLast();
-//                Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
-            }
-        }
-//        simpleWaveform.postInvalidate();
-//        simpleWaveform.refresh();
-    }
-
-    private void recyclerWave() {
-
-        LinkedList<LinkedList<Integer>> amp_list_list = new LinkedList();
-        for (int i = 0; i < 6; i++) {
-
-            LinkedList<Integer> ampList = new LinkedList<>();
-            amp_list_list.add(ampList);
-
-            for (int j = 0; j < 200; j++) {
-                ampList.add(randomInt(-50, 50));
-            }
-
-        }
-
-        linearLayoutManager = new LinearLayoutManager(this);
-        linearLayoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
-        recyclerView.setLayoutManager(linearLayoutManager);
-        RecyclerViewAdapter waveAdapter = new RecyclerViewAdapter(amp_list_list);
-        recyclerView.setAdapter(waveAdapter);
-
-//        recycler_view.scrollBy(100, 10);
-        recyclerView.scrollToPosition(2);
-//        recycler_view.smoothScrollBy(100, 10);
-    }
-
-    private int randomInt(int min, int max) {
-
-        Random rand = new Random();
-        int randomNum = rand.nextInt((max - min) + 1) + min;
-
-        return randomNum;
-    }
-
-    private class RecyclerViewAdapter extends
-            RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder> {
-        // List<LvRowFile> listItems;
-        LinkedList<LinkedList<Integer>> amp_list_list;
-
-        public RecyclerViewAdapter(LinkedList<LinkedList<Integer>> amp_list_list) {
-            this.amp_list_list = amp_list_list;
-        }
-
-        public class ViewHolder extends RecyclerView.ViewHolder {
-
-            public SimpleWaveform simpleWaveform;
-
-            public ViewHolder(View itemView) {
-                super(itemView);
-                this.simpleWaveform = (SimpleWaveform) itemView
-                        .findViewById(R.id.simpleWaveformRow);
-//                this.simpleWaveform.clearScreen();
-            }
-        }
-
-        @Override
-        public int getItemCount() {
-            Log.d("","SimpleWaveform: amp_list_list.size() "+amp_list_list.size());
-            return amp_list_list.size();
-        }
-
-        @Override
-        public void onBindViewHolder(ViewHolder holder, int position) {
-            Log.d("", "SimpleWaveform: position " + position);
-            holder.simpleWaveform.setDataList(amp_list_list.get(position));
-
-            holder.simpleWaveform.barPencilSecond.setStrokeWidth(15);
-            holder.simpleWaveform.barPencilSecond.setColor(0xff1dcfcf);
-
-            holder.simpleWaveform.peakPencilSecond.setStrokeWidth(5);
-            holder.simpleWaveform.peakPencilSecond.setColor(0xfffeef3f);
-
-            //show x-axis
-            holder.simpleWaveform.showXAxis = true;
-            holder.simpleWaveform.xAxisPencil.setStrokeWidth(1);
-            holder.simpleWaveform.xAxisPencil.setStrokeWidth(0x88ffffff);
-
-            holder.simpleWaveform.refresh();
-        }
-
-        @Override
-        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            // View view = View.inflate(parent.getContext(),
-            // R.layout.gridview_pic, null);
-            View view = View.inflate(parent.getContext(),
-                    R.layout.row_recycler, null);
-            ViewHolder holder = new ViewHolder(view);
-            Log.d("","SimpleWaveform: onCreateViewHolder ");
-            return holder;
-        }
-
     }
 
 }

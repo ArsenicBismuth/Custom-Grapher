@@ -16,7 +16,8 @@
     <string name="peak">Peak Power</string>
     <string name="high">Highest</string>
 
-    <string name="unit">Units in\u0020</string>
+    <!--<string name="unit">Units in\u0020</string>-->
+    <string name="unit">Units in %1s</string>
     <string name="watt">watt</string>
     <string name="hp">horsepower</string>
 
@@ -34,9 +35,14 @@
         \nDevelopers:\n
         \tDafa Faris M.</string>
 
+    <!-- Placeholder, can be used with String.format -->
     <string name="debug">Debugging Messages</string>
-    <string name="debug_content_1">Debug data:\n\u0020</string>
-    <string name="debug_content_2">Bluetooth valid data:\n\u0020</string>
-    <string name="debug_content_3">Bluetooth connected:\n\u0020</string>
+    <string name="debug_content_1">Valid Peak:\n %1$s</string>
+    <string name="debug_content_2">Full Duration:\n %1$s</string>
+    <string name="debug_content_3">Data Count:\n %1$s</string>
+
+    <!--<string name="debug_content_1">Valid Peak:\n\u0020</string>-->
+    <!--<string name="debug_content_2">Full Duration:\n\u0020</string>-->
+    <!--<string name="debug_content_3">Data Count:\n\u0020</string>-->
 
 </resources>
