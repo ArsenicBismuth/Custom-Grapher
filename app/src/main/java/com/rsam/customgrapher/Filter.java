@@ -123,7 +123,7 @@ public class Filter {
     // Get individual output
     public double getVal() { return outputs[0]; }
 
-    
+
 //    private void addBuffer(double value) {
 //        buffer.addFirst(value);
 //        if (buffer.size() > buffSize) {

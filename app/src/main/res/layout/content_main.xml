@@ -30,9 +30,8 @@
         <LinearLayout
             android:id="@+id/separator"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="0.005"
-            android:background="@color/Black"
+            android:layout_height="1px"
+            android:background="@color/divider"
             android:orientation="horizontal"></LinearLayout>
 
         <com.rsam.customgrapher.SimpleWaveform

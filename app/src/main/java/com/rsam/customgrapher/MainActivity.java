@@ -513,7 +513,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         simpleWaveform.showXAxis = true;
         xAxisPencil.setStrokeWidth(1);
 //        xAxisPencil.setColor(0x88ffffff);
-        xAxisPencil.setColor(getResources().getColor(R.color.Black));
+        xAxisPencil.setColor(getResources().getColor(R.color.divider));
         simpleWaveform.xAxisPencil = xAxisPencil;
 
         //define pencil to draw bar
