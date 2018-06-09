@@ -5,6 +5,7 @@ import java.util.LinkedList;
 
 import android.Manifest;
 import android.content.DialogInterface;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -32,8 +33,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final int REQUEST_CODE = 0;
     static final String[] PERMISSIONS = new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.MODIFY_AUDIO_SETTINGS};
 
-    private static final int MAX_AMPLITUDE = 16384;
-    SimpleWaveform simpleWaveform;
+    private static final int MAX_AMPLITUDE = 65536;
+    SimpleWaveform simpleWaveformA;
+    SimpleWaveform simpleWaveformB;
 
     Paint barPencilFirst = new Paint();
     Paint barPencilSecond = new Paint();
@@ -42,19 +44,32 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     Paint xAxisPencil = new Paint();
 
-    LinkedList<Integer> ampList = new LinkedList<>();
+    LinkedList<Integer> ampListA = new LinkedList<>();
+    LinkedList<Integer> ampListB = new LinkedList<>();
 
     private static final int RECORDER_SAMPLERATE = 44100;
     private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
-    private static Thread recordingThread = null;
+    private Thread recordingThread = null;
     //    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BufferElements2Rec = 1024;
     private static final int BytesPerElement = 2;   // 2 bytes in 16bit format
-    private static final int downSample = 140;      // Get every x-th sample
+    private static final int downSample = 1;      // Get every x-th sample
 
     private static long dataNum = 0;         // Keep the data count, beware it'll overflow
+
+    // This is the specs from the Arduino side. Remember that sample rate here is way higher, thus way higher cutoff too.
+    private double[] b = {0.00475620121821099,0.00531602775009807,0.00697257638013029,0.00965803223475034,0.0132624559586349,0.0176382846165920,
+                            0.0226063729569297,0.0279633277030225,0.0334898346007305,0.0389596373037971,0.0441488004914758,0.0488448779751206,
+                            0.0528556104397779,0.0560167967237531,0.0581990163752782,0.0593129282554953,0.0593129282554953,0.0581990163752782,
+                            0.0560167967237531,0.0528556104397779,0.0488448779751206,0.0441488004914758,0.0389596373037971,0.0334898346007305,
+                            0.0279633277030225,0.0226063729569297,0.0176382846165920,0.0132624559586349,0.00965803223475034,0.00697257638013029,
+                            0.00531602775009807,0.00475620121821099};
+    private Filter bpf1 = new Filter(32, b);
+
+//    private double[] b = {1};
+//    private Filter bpf1 = new Filter(1, b);
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -63,7 +78,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public static boolean setBPM = true;    // Settings for BPM calculation
     public static boolean setSPO2 = true;   // Settings for BPM calculation
     public static boolean setDebug = false; // Settings for debug message
-    //	public static float zoomHor = 1;		// Settings for waveform horizontal scale
+//	public static float zoomHor = 1;		// Settings for waveform horizontal scale
 //	public static float zoomVer = 1;		// Settings for waveform vertical scale
     public static boolean doRun = true;     // Run/Pause functionality
     public static boolean fabState = true;  // Preserving floating button state on pause
@@ -72,6 +87,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     TextView tBPM;
     TextView tSPO2;
+
+    //TODO layout editor compatibility with simpleWaveform
+        //Or at least change the bg canvas to darker white like the original
+    //TODO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
+        //Synchronized data, or at least matching pace
+    //TO-DO independent waveform management
+        //dual waveform
+    //TODO Demodulation
+    //TODO SPO2 calculation
+    //TODO BPM calculation
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,24 +133,45 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         });
 
-        simpleWaveform = (SimpleWaveform) findViewById(R.id.simpleWaveform);
-        simpleWaveform.setVisibility(View.VISIBLE);
+        simpleWaveformA = findViewById(R.id.simpleWaveformA);
+        simpleWaveformA.setVisibility(View.VISIBLE);
 
-        amplitudeWave();
+        simpleWaveformB = findViewById(R.id.simpleWaveformB);
+        simpleWaveformB.setVisibility(View.VISIBLE);
+
+        amplitudeWave(simpleWaveformA, ampListA);
+        amplitudeWave(simpleWaveformB, ampListB);
+
+//        // Common problem but pretty difficult to find the example, basically check if a layout has been drawn.
+//        // This is done since the layout is drawn way later than onCreate, or even onResume in the initial launch.
+//        ViewTreeObserver vto = simpleWaveformB.getViewTreeObserver();
+//        vto.addOnGlobalLayoutListener (new ViewTreeObserver.OnGlobalLayoutListener() {
+//            @Override
+//            public void onGlobalLayout() {
+//                simpleWaveformB.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+//                int width  = simpleWaveformB.getMeasuredWidth();
+//                int height = simpleWaveformB.getMeasuredHeight();
+//
+//                // Do something with the layout data
+//            }
+//        });
 
         int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
 
-        timeScreen = new TimeDiff();
+        bpf1.buffSize = BufferElements2Rec;
 
-//        startRecording(); Already in onResume()
+        Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
+
+//        timeScreen = new TimeDiff();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        PermissionsChecker checker = new PermissionsChecker(this);
+        // Also part of the method called on launch in the Activity Lifecycle
 
+        PermissionsChecker checker = new PermissionsChecker(this);
         if (checker.lacksPermissions(PERMISSIONS)) {
             startPermissionsActivity();
         } else {
@@ -145,21 +191,30 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         PermissionsActivity.startActivityForResult(this, REQUEST_CODE, PERMISSIONS);
     }
 
-//    private void startRecording() {
-//        try {
-//            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-//            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-//            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-//            recorder.setOutputFile("/dev/null");
-//            recorder.prepare();
-//            recorder.start();
-//        } catch (IllegalStateException | IOException ignored) {
-//        }
-//    }
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        // Checks the orientation of the screen, if landscape make the waveform side-by-side
+//        LinearLayout layoutWave = findViewById(R.id.layoutWave);
+//        LinearLayout separator = findViewById(R.id.separator);
+        if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) { // Default condition, which is the one currently used on the main layout
+//            layoutWave.setOrientation(LinearLayout.VERTICAL);
+            Log.d("", "portrait");
+            // Since the height is based on weight, height must be zero, width MATCH_PARENT
+            //TODO if not a hassle
+        } else if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE){
+//            layoutWave.setOrientation(LinearLayout.HORIZONTAL);
+            Log.d("", "landscape");
+            // Since the the one based on weight, width must be zero, height MATCH_PARENT
+            //TODO
+        }
+    }
 
     private void startRecording() {
 
         final short sData[] = new short[BufferElements2Rec];
+
         try {
             recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
                     RECORDER_SAMPLERATE, RECORDER_CHANNELS,
@@ -174,57 +229,29 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         try {
                             Thread.sleep(1);
                         } catch (Exception e) {
+                            // Thread waking up earlier due to an interrupt and able to be relocated
                         }
 
                         recorder.read(sData, 0, BufferElements2Rec);
-                        Log.d("", "ValA " + sData[0]);
+//                        Log.d("", "ValA " + sData[0]);
+                        bpf1.addArray(sData);   // Add data and calculate, resulting in only 1 output at a time for FIR
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-//                                Log.d("", "ValA " + sData[0]);
-//                                addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
-
-                                addArray(sData);
-                                setDebugMessages(String.valueOf(Collections.max(ampList)),1);
-                                setDebugMessages(String.valueOf(dataNum),3);
-                                simpleWaveform.refresh();
+                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember it destroys sData, place it last
+                                addWaveArray(bpf1.getBuffer(), simpleWaveformB, downSample);
+//                                addWaveData((int) bpf1.getVal(), simpleWaveformB);
+                                setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
+                                setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
+                                setDebugMessages(String.valueOf(dataNum), 3);
                             }
                         });
                     }
                 }
             }, "AudioRecorder Thread");
             recordingThread.start();
-
-//            waveThread = new Thread(new Runnable() {
-//                @Override
-//                public void run() {
-//
-//                    while (doRun) {
-//                        try {
-//                            Thread.sleep(1);
-//                        } catch (Exception e) {
-//                        }
-//
-//                        runOnUiThread(new Runnable() {
-//                            @Override
-//                            public void run() {
-////                                Log.d("", "ValA " + sData[0]);
-////                                addData(sData[0]);  // First data with size BufferElements2Rec, thus rate: RECORDER_SAMPLERATE / that size
-//
-//                                addArray(sData);
-//                                if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
-//                                    ampList.removeLast();
-//                                    Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
-//                                }
-//                                simpleWaveform.refresh();
-//                            }
-//                        });
-//                    }
-//                }
-//            }, "Waveform Thread");
-//            waveThread.start();
 
         } catch (IllegalStateException e) {
             e.printStackTrace();
@@ -242,35 +269,43 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         }
     }
 
-    public void addArray(short[] arr) {
+    public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
         for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addData(arr[i]);    // Add every x data
-            arr[i] = 0;
+            if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
+//            arr[i] = 0;
         }
-//        simpleWaveform.postInvalidate();    // Refresh only every every batch
     }
 
-    public void addData(int value) {
+    public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.length;
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
+//            arr[i] = 0;
+        }
+//        simpleWaveformA.postInvalidate();    // Refresh only every every batch
+    }
+
+    public void addWaveData(int value, SimpleWaveform simpleWaveform) {
+        // Should be called inside an UI Thread since contains View.invalidate()
         value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
-        ampList.addFirst(value);
-        if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
-            ampList.removeLast();
+        simpleWaveform.dataList.addFirst(value);
+        if (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
+            simpleWaveform.dataList.removeLast();
         }
         dataNum++;  // Increment data count
-//        simpleWaveform.postInvalidate();
-//        simpleWaveform.refresh();
+        simpleWaveform.refresh();
+//        simpleWaveform.postInvalidate();  // Allow update view outside an UI Thread
     }
 
-//    @Override
-//    protected void onDestroy() {
-//        super.onDestroy();
-//        handler.removeCallbacks(updater);
-//        recorder.stop();
-//        recorder.reset();
-//        recorder.release();
-//    }
-//
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+    }
+
 //    @Override
 //    public void onWindowFocusChanged(boolean hasFocus) {
 //        super.onWindowFocusChanged(hasFocus);
@@ -303,13 +338,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                     .setMultiChoiceItems(R.array.settings_content, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
-                            if (isChecked) {
-                                // If the user checked the item, set it to true in the items array
-                                selectedItems[indexSelected] = true;
-                            } else {
-                                // Else, if the item is unchecked, set it to false in the items array
-                                selectedItems[indexSelected] = false;
-                            }
+                            // If the user checked the item, set it to true in the items array
+// Else, if the item is unchecked, set it to false in the items array
+                            selectedItems[indexSelected] = isChecked;
                         }
                     })
                     .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
@@ -446,7 +477,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         }
     }
 
-    private void amplitudeWave() {
+    // Receive which waveform and what's data list
+    private void amplitudeWave(SimpleWaveform simpleWaveform, LinkedList<Integer> ampList) {
 
         simpleWaveform.init();
 
@@ -510,12 +542,12 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         };
 
         // Important example, don't remove
-//        simpleWaveform.progressTouch = new SimpleWaveform.ProgressTouch() {
+//        simpleWaveformA.progressTouch = new SimpleWaveform.ProgressTouch() {
 //            @Override
 //            public void progressTouch(int progress, MotionEvent event) {
 //                Log.d("", "you touch at: " + progress);
-//                simpleWaveform.firstPartNum = progress;
-//                simpleWaveform.refresh();
+//                simpleWaveformA.firstPartNum = progress;
+//                simpleWaveformA.refresh();
 //            }
 //        };
 
@@ -533,11 +565,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                        @Override
 //                        public void doRun() {
 //                            ampList.addFirst(randomInt(-50, 50));
-//                            if (ampList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
+//                            if (ampList.size() > simpleWaveformA.width / simpleWaveformA.barGap + 2) {
 //                                ampList.removeLast();
 //                                Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
 //                            }
-//                            simpleWaveform.refresh();
+//                            simpleWaveformA.refresh();
 //                        }
 //                    });
 //                }

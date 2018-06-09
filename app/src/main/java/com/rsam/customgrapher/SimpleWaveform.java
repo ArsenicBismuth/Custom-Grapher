@@ -144,11 +144,7 @@ public class SimpleWaveform extends View {
         height = this.getHeight();
         Log.d("","SimpleWaveform: w,h: " + width +" "+height);
 
-        if (width > 0 && height > 0) {
-            haveGotWidthHeight = true;
-        }else{
-            haveGotWidthHeight = false;
-        }
+        haveGotWidthHeight = width > 0 && height > 0;
 
         if (!haveGotWidthHeight) {
             getWidthLength();

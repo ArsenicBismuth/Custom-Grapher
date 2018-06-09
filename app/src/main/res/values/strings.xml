@@ -38,7 +38,7 @@
     <!-- Placeholder, can be used with String.format -->
     <string name="debug">Debugging Messages</string>
     <string name="debug_content_1">Valid Peak:\n %1$s</string>
-    <string name="debug_content_2">Full Duration:\n %1$s</string>
+    <string name="debug_content_2">Filter result:\n %1$s</string>
     <string name="debug_content_3">Data Count:\n %1$s</string>
 
     <!--<string name="debug_content_1">Valid Peak:\n\u0020</string>-->

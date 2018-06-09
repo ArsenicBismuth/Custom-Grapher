@@ -1,4 +1,4 @@
-package com.rsam.customgrapher.unused;;
+package com.rsam.customgrapher.unused;
 
 public class Difference {
 	private int difference = 0;

@@ -31,7 +31,6 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".Waveform"></activity>
         <activity android:name=".permissions.PermissionsActivity"></activity>
 
     </application>

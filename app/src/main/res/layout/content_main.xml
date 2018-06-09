@@ -8,12 +8,41 @@
     tools:context="com.rsam.customgrapher.MainActivity"
     tools:showIn="@layout/activity_main">
 
-    <com.rsam.customgrapher.SimpleWaveform
-        android:id="@+id/simpleWaveform"
+    <LinearLayout
+        android:id="@+id/layoutWave"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:longClickable="true"
-        android:visibility="invisible" />
+        android:layout_margin="0dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.rsam.customgrapher.SimpleWaveform
+            android:id="@+id/simpleWaveformA"
+            android:layout_width="match_parent"
+            android:layout_height="0px"
+            android:layout_weight="1"
+            android:longClickable="true"
+            android:visibility="invisible" />
+
+        <LinearLayout
+            android:id="@+id/separator"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.005"
+            android:background="@color/Black"
+            android:orientation="horizontal"></LinearLayout>
+
+        <com.rsam.customgrapher.SimpleWaveform
+            android:id="@+id/simpleWaveformB"
+            android:layout_width="match_parent"
+            android:layout_height="0px"
+            android:layout_weight="1"
+            android:longClickable="true"
+            android:visibility="invisible" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/layoutData"
