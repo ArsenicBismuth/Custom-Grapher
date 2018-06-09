@@ -41,10 +41,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     Paint barPencilSecond = new Paint();
     Paint peakPencilFirst = new Paint();
     Paint peakPencilSecond = new Paint();
+    Paint background = new Paint();
 
     Paint xAxisPencil = new Paint();
 
-    LinkedList<Integer> ampListA = new LinkedList<>();
+    LinkedList<Integer> ampListA = new LinkedList<>();  // Data used by Waveform
     LinkedList<Integer> ampListB = new LinkedList<>();
 
     private static final int RECORDER_SAMPLERATE = 44100;
@@ -52,12 +53,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
-    //    int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
-    private static final int BufferElements2Rec = 1024;
-    private static final int BytesPerElement = 2;   // 2 bytes in 16bit format
-    private static final int downSample = 1;      // Get every x-th sample
+    private static final int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
+    private static final int BytesPerElement = 2;       // 2 bytes in 16bit format
+    private static final int downSample = 1;            // Get every x-th sample
 
-    private static long dataNum = 0;         // Keep the data count, beware it'll overflow
+    private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
 
     // This is the specs from the Arduino side. Remember that sample rate here is way higher, thus way higher cutoff too.
     private double[] b = {0.00475620121821099,0.00531602775009807,0.00697257638013029,0.00965803223475034,0.0132624559586349,0.0176382846165920,
@@ -83,14 +83,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public static boolean doRun = true;     // Run/Pause functionality
     public static boolean fabState = true;  // Preserving floating button state on pause
 
-    public static TimeDiff timeScreen;
+//    public static TimeDiff timeScreen;
 
     TextView tBPM;
     TextView tSPO2;
 
     //TODO layout editor compatibility with simpleWaveform
         //Or at least change the bg canvas to darker white like the original
-    //TODO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
+    //TO-DO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
         //Synchronized data, or at least matching pace
     //TO-DO independent waveform management
         //dual waveform
@@ -306,11 +306,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     }
 
-//    @Override
-//    public void onWindowFocusChanged(boolean hasFocus) {
-//        super.onWindowFocusChanged(hasFocus);
-//        handler.post(updater);
-//    }
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -339,7 +339,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         @Override
                         public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
                             // If the user checked the item, set it to true in the items array
-// Else, if the item is unchecked, set it to false in the items array
+                            // Else, if the item is unchecked, set it to false in the items array
                             selectedItems[indexSelected] = isChecked;
                         }
                     })
@@ -477,15 +477,17 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         }
     }
 
-    // Receive which waveform and what's data list
+    // Specify the theme of every waveform
     private void amplitudeWave(SimpleWaveform simpleWaveform, LinkedList<Integer> ampList) {
+        // Receive which waveform and data list
 
         simpleWaveform.init();
 
         simpleWaveform.setDataList(ampList);
 
         //define background
-        simpleWaveform.background.setColor(getResources().getColor(R.color.White));
+        background.setColor(Color.LTGRAY);
+        simpleWaveform.background = background;
 
         //define bar gap
         simpleWaveform.barGap = 2;
@@ -541,40 +543,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         };
 
-        // Important example, don't remove
-//        simpleWaveformA.progressTouch = new SimpleWaveform.ProgressTouch() {
-//            @Override
-//            public void progressTouch(int progress, MotionEvent event) {
-//                Log.d("", "you touch at: " + progress);
-//                simpleWaveformA.firstPartNum = progress;
-//                simpleWaveformA.refresh();
-//            }
-//        };
-
-//        //loop
-//        new Thread(new Runnable() {
-//            @Override
-//            public void doRun() {
-//                while (true) {
-//                    try {
-//                        Thread.sleep(200);
-//                    } catch (Exception e) {
-//                    }
-//
-//                    runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void doRun() {
-//                            ampList.addFirst(randomInt(-50, 50));
-//                            if (ampList.size() > simpleWaveformA.width / simpleWaveformA.barGap + 2) {
-//                                ampList.removeLast();
-//                                Log.d("", "SimpleWaveform: ampList remove last node, total " + ampList.size());
-//                            }
-//                            simpleWaveformA.refresh();
-//                        }
-//                    });
-//                }
-//            }
-//        }).start();
     }
 
 }

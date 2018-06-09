@@ -213,7 +213,7 @@ public class SimpleWaveform extends View {
         if (clearScreenListener != null) {
             clearScreenListener.clearScreen(canvas);
         } else {
-            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+//            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.SRC); // Removed since it makes the BG not go normally
         }
 
         if (clearScreen) {

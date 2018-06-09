@@ -1,7 +1,5 @@
 package com.rsam.customgrapher;
 
-import java.util.LinkedList;
-
 public class Filter {
 	private int order = 32;
 	private boolean iir = false;
@@ -10,18 +8,21 @@ public class Filter {
 	private double[] a = {0};
 	private double[] b = {0};
 
-	public int buffSize = 256;							    // Length of the buffer linked list
-//    public LinkedList<Double> buffer = new LinkedList<>();	// To store output continuously
+	int buffSize = 256;							    // Length of the buffer linked list
+//  public LinkedList<Double> buffer = new LinkedList<>();	// To store output continuously
 //	public double[] bufferArr;
     private double[] buffer;
     private int ib = 0;         // Buffer pointer
 
-    public Filter(int order, double[] b, double[] a, int buffSize) {
+    // Recommended by Android studio to be package-private which is no modifier.
+	// No modifier means its access level is similar to private (Class only) with the addition of Package.
+    // But no Subclass (class which extends superclass) access like public.
+    Filter(int order, double[] b, double[] a, int buffSize) {
 		this(order, b, a);
 		this.buffSize = buffSize;
 	}
 
-    public Filter(int order, double[] b, int buffSize) {
+    Filter(int order, double[] b, int buffSize) {
 		this(order, b);
 		this.buffSize = buffSize;
 	}
@@ -119,6 +120,10 @@ public class Filter {
         return buffer;
     }
 
+    // Get individual output
+    public double getVal() { return outputs[0]; }
+
+    
 //    private void addBuffer(double value) {
 //        buffer.addFirst(value);
 //        if (buffer.size() > buffSize) {
@@ -132,8 +137,6 @@ public class Filter {
 //        for (Double v : bufferTemp) bufferArr[i++] = v;
 //		return bufferArr;
 //	}
-
-	public double getVal() { return outputs[0]; }
 
 	// Get collected output
 //	public LinkedList<Double> getBuffer() {
