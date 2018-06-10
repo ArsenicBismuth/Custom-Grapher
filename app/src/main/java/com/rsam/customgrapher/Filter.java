@@ -8,7 +8,7 @@ public class Filter {
 	private double[] a = {0};
 	private double[] b = {0};
 
-	int buffSize = 256;							    // Length of the buffer linked list
+	private int buffSize = 4;							    // Length of the buffer linked list
 //  public LinkedList<Double> buffer = new LinkedList<>();	// To store output continuously
 //	public double[] bufferArr;
     private double[] buffer;
@@ -54,13 +54,19 @@ public class Filter {
 		inputs = new double[order];
 	}
 
+    public void initBuffer(int buffSize) {
+        // Buffer initialized since the size is constant
+        this.buffSize = buffSize;
+        buffer = new double[buffSize];
+    }
+
 	public void addArray(short[] arr) {
         addArray(arr, 1);
 	}
 
 	public void addArray(short[] arr, int downSample) {
-        buffer = new double[buffSize];                  // Remake buffer every add array request
-        ib = 0;
+//        buffer = new double[buffSize];                  // Remake buffer every add array request, creating lot of objects
+        ib = 0;                                         // Restart buffer pointer
 		int arrSize = arr.length;
 		for (int i = 0; i < arrSize; i++) {
 			if (i % downSample == 0) addVal(arr[i]);    // Add every x data
@@ -72,8 +78,8 @@ public class Filter {
 	}
 
 	public void addArray(int[] arr, int downSample) {
-        buffer = new double[buffSize];                  // Remake buffer every add array request
-        ib = 0;
+//        buffer = new double[buffSize];                  // Remake buffer every add array request, creating lot of objects
+        ib = 0;                                         // Restart buffer pointer
 		int arrSize = arr.length;
 		for (int i = 0; i < arrSize; i++) {
 			if (i % downSample == 0) addVal(arr[i]);    // Add every x data
@@ -122,27 +128,5 @@ public class Filter {
 
     // Get individual output
     public double getVal() { return outputs[0]; }
-
-
-//    private void addBuffer(double value) {
-//        buffer.addFirst(value);
-//        if (buffer.size() > buffSize) {
-//            buffer.removeLast();
-//    }
-
-//	public double[] getBufferArr() {
-//        LinkedList<Double> bufferTemp = new LinkedList<>(buffer); // Copy to avoid manipulation while buffer is edited
-//        bufferArr = new double[buffSize];
-//        int i = 0;
-//        for (Double v : bufferTemp) bufferArr[i++] = v;
-//		return bufferArr;
-//	}
-
-	// Get collected output
-//	public LinkedList<Double> getBuffer() {
-//		return buffer;
-//	}
-
-//	public double[] getArray() { return outputs; }
 
 }

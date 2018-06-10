@@ -1,5 +1,6 @@
 package com.rsam.customgrapher;
 
+import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.LinkedList;
 
@@ -22,6 +23,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -88,15 +90,17 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    //TODO layout editor compatibility with simpleWaveform
-        //Or at least change the bg canvas to darker white like the original
-    //TO-DO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
-        //Synchronized data, or at least matching pace
-    //TO-DO independent waveform management
-        //dual waveform
-    //TODO Demodulation
-    //TODO SPO2 calculation
-    //TODO BPM calculation
+    // TO-DO layout editor compatibility with simpleWaveform
+        // Or at least change the bg canvas to darker white like the original
+    // TO-DO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
+        // Synchronized data, or at least matching pace
+    // TO-DO independent waveform management
+        // Dual waveform
+    // TODO Demodulation
+    // TODO SPO2 calculation
+    // TODO BPM calculation
+    // TODO cleaning up on published version
+        // Remove advanced profiler & logging
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -159,7 +163,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
 
-        bpf1.buffSize = BufferElements2Rec;
+        bpf1.initBuffer(BufferElements2Rec);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
 
@@ -191,25 +195,33 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         PermissionsActivity.startActivityForResult(this, REQUEST_CODE, PERMISSIONS);
     }
 
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-
-        // Checks the orientation of the screen, if landscape make the waveform side-by-side
-//        LinearLayout layoutWave = findViewById(R.id.layoutWave);
-//        LinearLayout separator = findViewById(R.id.separator);
-        if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) { // Default condition, which is the one currently used on the main layout
-//            layoutWave.setOrientation(LinearLayout.VERTICAL);
-            Log.d("", "portrait");
-            // Since the height is based on weight, height must be zero, width MATCH_PARENT
-            //TODO if not a hassle
-        } else if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE){
-//            layoutWave.setOrientation(LinearLayout.HORIZONTAL);
-            Log.d("", "landscape");
-            // Since the the one based on weight, width must be zero, height MATCH_PARENT
-            //TODO
-        }
-    }
+//    @Override
+//    public void onConfigurationChanged(Configuration newConfig) {
+//        super.onConfigurationChanged(newConfig);
+//
+//        // Checks the orientation of the screen, if landscape make the waveform side-by-side
+////        LinearLayout layoutWave = findViewById(R.id.layoutWave);
+////        LinearLayout separator = findViewById(R.id.separator);
+//        if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) { // Default condition, which is the one currently used on the main layout
+////            layoutWave.setOrientation(LinearLayout.VERTICAL);
+////            Log.d("", "portrait");
+//            // Since the height is based on weight, height must be zero, width MATCH_PARENT
+//        } else if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE){
+////            layoutWave.setOrientation(LinearLayout.HORIZONTAL);
+////            Log.d("", "landscape");
+//            // Since the the one based on weight, width must be zero, height MATCH_PARENT
+//        }
+//    }
+//
+//    private void resizeView(View view, int newWidth, int newHeight) {
+//        try {
+//            // If only view width and height needed, use a ViewGroup.LayoutParams, as all the other ones inherit from this one.
+//            Constructor<? extends ViewGroup.LayoutParams> ctor = view.getLayoutParams().getClass().getDeclaredConstructor(int.class, int.class);
+//            view.setLayoutParams(ctor.newInstance(newWidth, newHeight));
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     private void startRecording() {
 
@@ -240,7 +252,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember it destroys sData, place it last
+                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
                                 addWaveArray(bpf1.getBuffer(), simpleWaveformB, downSample);
 //                                addWaveData((int) bpf1.getVal(), simpleWaveformB);
                                 setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
@@ -269,6 +281,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         }
     }
 
+    public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.length;
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
+//            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
+        }
+//        simpleWaveformA.postInvalidate();    // Refresh only every every batch
+    }
+
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
@@ -276,16 +298,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
 //            arr[i] = 0;
         }
-    }
-
-    public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
-        int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
-        for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
-//            arr[i] = 0;
-        }
-//        simpleWaveformA.postInvalidate();    // Refresh only every every batch
     }
 
     public void addWaveData(int value, SimpleWaveform simpleWaveform) {
@@ -505,7 +517,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         simpleWaveform.showBar = false;
 
         //define how to show peaks outline
-        simpleWaveform.modePeak = SimpleWaveform.MODE_PEAK_PARALLEL;
+        simpleWaveform.modePeak = SimpleWaveform.MODE_PEAK_ORIGIN;
         //if show peaks outline?
         simpleWaveform.showPeak = true;
 
@@ -515,6 +527,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //        xAxisPencil.setColor(0x88ffffff);
         xAxisPencil.setColor(getResources().getColor(R.color.divider));
         simpleWaveform.xAxisPencil = xAxisPencil;
+        //show x-axis on top of outline or under
+        simpleWaveform.modePriority = SimpleWaveform.MODE_AXIS_UNDER_AMP;
 
         //define pencil to draw bar
         barPencilFirst.setStrokeWidth(1);

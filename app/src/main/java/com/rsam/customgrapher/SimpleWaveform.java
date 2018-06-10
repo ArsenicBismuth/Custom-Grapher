@@ -37,6 +37,9 @@ public class SimpleWaveform extends View {
     public final static int MODE_DIRECTION_LEFT_RIGHT = 1;
     public final static int MODE_DIRECTION_RIGHT_LEFT = 2;
     public int modeDirection;
+    public final static int MODE_AXIS_OVER_AMP = 1;     // Specify whether axis drawn priority over amplitude
+    public final static int MODE_AXIS_UNDER_AMP = 2;
+    public int modePriority;
 
     private int barUnitSize;
     private int peakUnitSize;
@@ -385,22 +388,7 @@ public class SimpleWaveform extends View {
             }
         }
 
-        /*
-         * draw
-         */
-        canvas.drawColor(background.getColor(), PorterDuff.Mode.SRC);
-        if (firstPartNum > barNum) {
-            firstPartNum = barNum;
-        }
-        if (showBar) {
-            canvas.drawLines(barPointsF, 0, firstPartNum * barUnitSize, barPencilFirst);
-            canvas.drawLines(barPointsF, firstPartNum * barUnitSize, (barNum - firstPartNum) * barUnitSize, barPencilSecond);
-        }
-        if (showPeak) {
-            canvas.drawLines(peakPoints, 0, firstPartNum * peakUnitSize, peakPencilFirst);
-            canvas.drawLines(peakPoints, firstPartNum * peakUnitSize, (barNum - firstPartNum) * peakUnitSize, peakPencilSecond);
-        }
-        if(showXAxis){
+        if(showXAxis) {
             xAxisPoints = new float[4];
             int xAxis_y = 0;
             switch (modeZero) {
@@ -418,6 +406,27 @@ public class SimpleWaveform extends View {
             xAxisPoints[1] = xAxis_y;
             xAxisPoints[2] = width;
             xAxisPoints[3] = xAxis_y;
+        }
+
+        /*
+         * draw
+         */
+        canvas.drawColor(background.getColor(), PorterDuff.Mode.SRC);
+        if (firstPartNum > barNum) {
+            firstPartNum = barNum;
+        }
+        if (showBar) {
+            canvas.drawLines(barPointsF, 0, firstPartNum * barUnitSize, barPencilFirst);
+            canvas.drawLines(barPointsF, firstPartNum * barUnitSize, (barNum - firstPartNum) * barUnitSize, barPencilSecond);
+        }
+        if ((showXAxis) && (modePriority != MODE_AXIS_OVER_AMP)) {
+            canvas.drawLines(xAxisPoints, xAxisPencil);
+        }
+        if (showPeak) {
+            canvas.drawLines(peakPoints, 0, firstPartNum * peakUnitSize, peakPencilFirst);
+            canvas.drawLines(peakPoints, firstPartNum * peakUnitSize, (barNum - firstPartNum) * peakUnitSize, peakPencilSecond);
+        }
+        if ((showXAxis) && (modePriority == MODE_AXIS_OVER_AMP)) {
             canvas.drawLines(xAxisPoints, xAxisPencil);
         }
 
