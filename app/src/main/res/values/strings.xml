@@ -24,11 +24,12 @@
     <string name="toast_pause">Paused</string>
     <string name="toast_resume">Resumed</string>
 
-    <string-array name="settings_content">
-        <item>Show beat per minute (BPM)</item>
-        <item>Show oxygen saturation (SPO2)</item>
-        <item>Debugging messages</item>
-    </string-array>
+    <!-- Old settings method -->
+    <!--<string-array name="settings_content">-->
+        <!--<item>Show beat per minute (BPM)</item>-->
+        <!--<item>Show oxygen saturation (SPO2)</item>-->
+        <!--<item>Debugging messages</item>-->
+    <!--</string-array>-->
 
     <string name="about_content">
         Power Calculator\n
@@ -40,9 +41,115 @@
     <string name="debug_content_1">Valid Peak:\n %1$s</string>
     <string name="debug_content_2">Filter result:\n %1$s</string>
     <string name="debug_content_3">Data Count:\n %1$s</string>
+    <string name="title_activity_settings">Settings</string>
 
-    <!--<string name="debug_content_1">Valid Peak:\n\u0020</string>-->
-    <!--<string name="debug_content_2">Full Duration:\n\u0020</string>-->
-    <!--<string name="debug_content_3">Data Count:\n\u0020</string>-->
+    <!-- Strings related to Settings -->
+
+    <!-- General settings -->
+    <string name="pref_header_general">General</string>
+
+    <string name="pref_title_bpm">Display beat per minute (BPM)</string>
+    <string name="pref_description_bpm">Parameter calculating the amount of heartbeat
+        per minute
+    </string>
+
+    <string name="pref_title_spo2">Display oxygen saturation (SPO2)</string>
+    <string name="pref_description_spo2">Parameter estimating the amount of oxygen
+        in the blood
+    </string>
+
+    <string name="pref_title_orientation">Set screen orientation</string>
+    <string-array name="pref_list_orientation_entries">
+        <item>Auto</item>
+        <item>Landscape</item>
+        <item>Portrait</item>
+    </string-array>
+    <string-array name="pref_list_orientation_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string name="pref_title_advanced">Advanced</string>
+
+    <string name="pref_title_downsample">Sample skip (Downsample)</string>
+    <!--<string name="pref_description_downsample">Update the visualizer only after specified amount-->
+        <!--of sample, making the visualizer move slower at the cost of accuracy-->
+    <!--</string>-->
+
+    <string name="pref_title_debug">Display debugging messages</string>
+    <string name="pref_description_debug">Extra information used for debugging purposes
+    </string>
+
+    <string name="pref_title_reset">Reset settings</string>
+    <string name="pref_description_reset">Revert settings to default values after closing
+        the settings menu
+    </string>
+
+
+
+
+    <!-- Examples -->
+    <string name="pref_title_display_name">Display name</string>
+    <string name="pref_default_display_name">John Smith</string>
+
+    <string name="pref_title_add_friends_to_messages">Add friends to messages</string>
+    <string-array name="pref_example_list_titles">
+        <item>Always</item>
+        <item>When possible</item>
+        <item>Never</item>
+    </string-array>
+    <string-array name="pref_example_list_values">
+        <item>1</item>
+        <item>0</item>
+        <item>-1</item>
+    </string-array>
+
+    <!-- Example settings for Data & Sync -->
+    <string name="pref_header_data_sync">Data &amp; sync</string>
+
+    <string name="pref_title_sync_frequency">Sync frequency</string>
+    <string-array name="pref_sync_frequency_titles">
+        <item>15 minutes</item>
+        <item>30 minutes</item>
+        <item>1 hour</item>
+        <item>3 hours</item>
+        <item>6 hours</item>
+        <item>Never</item>
+    </string-array>
+    <string-array name="pref_sync_frequency_values">
+        <item>15</item>
+        <item>30</item>
+        <item>60</item>
+        <item>180</item>
+        <item>360</item>
+        <item>-1</item>
+    </string-array>
+
+    <string-array name="list_preference_entries">
+        <item>Entry 1</item>
+        <item>Entry 2</item>
+        <item>Entry 3</item>
+    </string-array>
+
+    <string-array name="list_preference_entry_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+
+    <string-array name="multi_select_list_preference_default_value" />
+
+    <string name="pref_title_system_sync_settings">System sync settings</string>
+
+    <!-- Example settings for Notifications -->
+    <string name="pref_header_notifications">Notifications</string>
+
+    <string name="pref_title_new_message_notifications">New message notifications</string>
+
+    <string name="pref_title_ringtone">Ringtone</string>
+    <string name="pref_ringtone_silent">Silent</string>
+
+    <string name="pref_title_vibrate">Vibrate</string>
 
 </resources>

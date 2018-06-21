@@ -1,12 +1,13 @@
 package com.rsam.customgrapher;
 
-import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.LinkedList;
 
 import android.Manifest;
 import android.content.DialogInterface;
-import android.content.res.Configuration;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -15,6 +16,7 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -23,12 +25,12 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.rsam.customgrapher.permissions.PermissionsActivity;
 import com.rsam.customgrapher.permissions.PermissionsChecker;
+import com.rsam.customgrapher.settings.SettingsActivity;
 
 public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDataCaptureListener*/ {
 
@@ -57,7 +59,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private Thread recordingThread = null;
     private static final int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BytesPerElement = 2;       // 2 bytes in 16bit format
-    private static final int downSample = 1;            // Get every x-th sample
+    private static int downSample = 1;                  // Get every x-th sample, also a [settings]
 
     private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
 
@@ -79,7 +81,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     // Variables for settings menu and their initial conditions
     public static boolean setBPM = true;    // Settings for BPM calculation
     public static boolean setSPO2 = true;   // Settings for BPM calculation
+    public static int setOrientation = 0;   // Settings for orientation
     public static boolean setDebug = false; // Settings for debug message
+    public static boolean setReset = false; // Settings for reset settings
 //	public static float zoomHor = 1;		// Settings for waveform horizontal scale
 //	public static float zoomVer = 1;		// Settings for waveform vertical scale
     public static boolean doRun = true;     // Run/Pause functionality
@@ -90,11 +94,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    // TO-DO layout editor compatibility with simpleWaveform
+    // Layout editor compatibility with simpleWaveform
         // Or at least change the bg canvas to darker white like the original
-    // TO-DO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
+    // General filter implementation, still not even filtering, and data is somehow cut to a 1/4
         // Synchronized data, or at least matching pace
-    // TO-DO independent waveform management
+    // Independent waveform management
         // Dual waveform
     // TODO Demodulation
     // TODO SPO2 calculation
@@ -106,6 +110,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Main GUIs initialization
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -113,7 +119,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         tSPO2 = findViewById(R.id.textSPO2);
 
         setDebugMessages("",0); // Empty values
-        applySettings();                        // Apply settings variables to layout
 
         final FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -137,6 +142,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         });
 
+        // Settings initialization
+        // Making sure Shared Pref file initialized with default values.
+        // Last parameter specifies to read the data if the method has been called before,
+        // but it won't reset; just an efficiency flag.
+        PreferenceManager.setDefaultValues(this, R.xml.pref_general, false);
+            // Add other headers' pref_ if available/used
+
+        // Waveforms initialization
         simpleWaveformA = findViewById(R.id.simpleWaveformA);
         simpleWaveformA.setVisibility(View.VISIBLE);
 
@@ -166,8 +179,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         bpf1.initBuffer(BufferElements2Rec);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
-
-//        timeScreen = new TimeDiff();
     }
 
     @Override
@@ -182,6 +193,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             doRun = fabState;
             if (doRun) startRecording();
         }
+
+        // Apply settings
+        applySettings();
     }
 
     @Override
@@ -189,6 +203,105 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         super.onPause();
         doRun = false;
         stopRecording();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        // Action on settings (which basically a list of multiple CheckBoxes)
+        if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+
+        if (id == R.id.action_about) {
+            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+            dialog.setTitle(getString(R.string.action_about))
+                    .setMessage(getString(R.string.about_content))
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // continue with delete
+                        }
+                    })
+                    .show();
+
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void applySettings() {
+        Log.d("", "applySettings");
+
+        // Get Shared Preferences under the default name "com.example.something_preferences"
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+
+        // Get the values
+        // Def value here is the value if no value found for specified key (including xml default val)
+        setBPM = sharedPref.getBoolean("switch-bpm", true);
+        setSPO2 = sharedPref.getBoolean("switch-spo2", true);
+        setOrientation = Integer.parseInt(sharedPref.getString("list-orientation", "0"));
+        setDebug = sharedPref.getBoolean("switch-debug", false);
+        downSample = Integer.parseInt(sharedPref.getString("value-downsample", "10"));
+        setReset = sharedPref.getBoolean("switch-reset", false);
+
+        if (setReset) {
+            // Force the settings to revert to xml default values
+            Log.d("", "Reset");
+//            sharedPref.edit().clear().apply();  // Apply() returns no value, faster because asynchronous
+            sharedPref.edit().clear().commit();  // But Apply() might make the settings not fully reset
+
+            PreferenceManager.
+                    setDefaultValues(this, R.xml.pref_general, false);    // Reread def values
+
+            setReset = false;   // Force change, despite default value is already false. Prevent human error.
+            applySettings();    // Reapply settings
+            return;
+        }
+
+        // Apply settings variables to layout
+        View layout = findViewById(R.id.layoutBPM);
+        if (setBPM) {
+            layout.setVisibility(View.VISIBLE);
+            // Also enable calculation
+        } else {
+            // Remove as a layout rather than just changing visibility
+            layout.setVisibility(View.GONE);
+            // Also disable calculation
+        }
+
+        layout = findViewById(R.id.layoutSPO2);
+        if (setSPO2) {
+            layout.setVisibility(View.VISIBLE);
+            // Also enable calculation
+        } else {
+            layout.setVisibility(View.GONE);
+            // Also disable calculation
+        }
+
+        switch (setOrientation) {
+            case 2 :  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); break;
+            case 1 :  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE); break;
+            default : setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        }
+
+        if (downSample < 1) downSample = 1;
+
+        layout = findViewById(R.id.layoutDebug);
+        if (setDebug) {
+            layout.setVisibility(View.VISIBLE);
+        } else {
+            layout.setVisibility(View.INVISIBLE);
+        }
+
+//        setPower(valAvg, valPeak); // Refresh the power texts
     }
 
     private void startPermissionsActivity() {
@@ -329,101 +442,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        // Action on settings (which basically a list of multiple CheckBoxes)
-        if (id == R.id.action_settings) {
-            final boolean[] selectedItems = {setBPM, setSPO2, setDebug}; // Map setting items to their corresponding variables
-
-            // Trust me, this is the best template out there. Browsing again won't give better stuffs.
-            // Just need to change mapping above and the corresponding effects below, inside "onClick" & applySettings().
-            // Also, see strings.xml to see the settings content (R.array.settings_content)
-            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-            dialog.setTitle(getString(R.string.action_settings))
-                    .setMultiChoiceItems(R.array.settings_content, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
-                            // If the user checked the item, set it to true in the items array
-                            // Else, if the item is unchecked, set it to false in the items array
-                            selectedItems[indexSelected] = isChecked;
-                        }
-                    })
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int id) {
-                            // Apply settings to variables
-                            setBPM = selectedItems[0];
-                            setSPO2 = selectedItems[1];
-                            setDebug = selectedItems[2];
-
-                            // Apply settings variables to layout
-                            applySettings();
-                        }
-                    })
-                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int id) {
-                            // Don't apply settings
-                        }
-                    })
-                    .show();
-            return true;
-        }
-
-        if (id == R.id.action_about) {
-            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-            dialog.setTitle(getString(R.string.action_about))
-                    .setMessage(getString(R.string.about_content))
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            // continue with delete
-                        }
-                    })
-                    .show();
-
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void applySettings() {
-
-        // Apply settings variables to layout
-        View layout = findViewById(R.id.layoutBPM);
-        if (setBPM) {
-            layout.setVisibility(View.VISIBLE);
-            // Also enable calculation
-        } else {
-            // Remove as a layout rather than just changing visibility
-            layout.setVisibility(View.GONE);
-            // Also disable calculation
-        }
-
-        layout = findViewById(R.id.layoutSPO2);
-        if (setSPO2) {
-            layout.setVisibility(View.VISIBLE);
-            // Also enable calculation
-        } else {
-            layout.setVisibility(View.GONE);
-            // Also disable calculation
-        }
-
-        layout = findViewById(R.id.layoutDebug);
-        if (setDebug) {
-            layout.setVisibility(View.VISIBLE);
-        } else {
-            layout.setVisibility(View.INVISIBLE);
-        }
-
-//        setPower(valAvg, valPeak); // Refresh the power texts
     }
 
     private int calculateBPM(int values) {
