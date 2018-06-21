@@ -24,7 +24,7 @@ public class Filter {
 
     Filter(int order, double[] b, int buffSize) {
 		this(order, b);
-		this.buffSize = buffSize;
+		initBuffer(buffSize);
 	}
 
 	// IIR if a is given
