@@ -14,13 +14,13 @@ Obtain HbO2 and Hb signal from sensor and transmit them both through a single si
    
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
-1. Downsample by 30x   => 1470Hz
+1. Downsample by 21x   => 2100Hz
 2. Separate channels
-   - Separate HbO2, ch1 (200Hz): FIR, 250 \ 350 (Hz)   => 32th order
-   - Separate Hb, ch2 (500Hz): FIR, 350 / 450 (Hz)   => 33nd order
+   - Separate HbO2, ch1 (200Hz): FIR, 210 \ 300 (Hz)   => 51st order
+   - Separate Hb, ch2 (400Hz): FIR, 300 / 390 (Hz)   => 51st order
 3. Demodulate each
-   - Rectify
+   - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
    - FIR, 30 \ 190 (Hz)   => 20th order
-4. Downsample by 7x   => 210Hz
+4. Downsample by 10x   => 210Hz
 5. Noise & offset filtering
    - IIR, 0.01 / 0.05 9 \ 15 => 31st order
