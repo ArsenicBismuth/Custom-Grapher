@@ -1,5 +1,7 @@
 package com.rsam.customgrapher;
 
+import static java.lang.Math.abs;
+
 public class Filter {
 	private int order = 32;
 	private boolean iir = false;
@@ -7,6 +9,7 @@ public class Filter {
 	private double[] outputs;
 	private double[] a = {0};
 	private double[] b = {0};
+	private boolean rectified = false;
 
 	private int buffSize = 4;							    // Length of the buffer linked list
 //  public LinkedList<Double> buffer = new LinkedList<>();	// To store output continuously
@@ -17,44 +20,54 @@ public class Filter {
     // Recommended by Android studio to be package-private which is no modifier.
 	// No modifier means its access level is similar to private (Class only) with the addition of Package.
     // But no Subclass (class which extends superclass) access like public.
+    Filter(int order, double[] b, double[] a, int buffSize, boolean rectified) {
+        this(order, b, a, buffSize);
+        this.rectified = rectified;
+    }
+
     Filter(int order, double[] b, double[] a, int buffSize) {
 		this(order, b, a);
-		this.buffSize = buffSize;
+        initBuffer(buffSize);
 	}
+
+    Filter(int order, double[] b, int buffSize, boolean rectified) {
+        this(order, b, buffSize);
+        this.rectified = rectified;
+    }
 
     Filter(int order, double[] b, int buffSize) {
 		this(order, b);
-		this.buffSize = buffSize;
+		initBuffer(buffSize);
 	}
 
 	// IIR if a is given
-    public Filter(int order, double[] b, double[] a) {
+    Filter(int order, double[] b, double[] a) {
 		this.order = order;
 		this.a = a;
 		this.b = b;
 		if (a.length != 0) this.iir = true;
 		else if (a.length != order) throw (new IllegalArgumentException("Invalid a-array size."));
 		if (b.length != order) throw (new IllegalArgumentException("Invalid b-array size."));
-		initFilter();
+		init();
 	}
 
 	// FIR
-    public Filter(int order, double[] b) {
+    Filter(int order, double[] b) {
 		this.order = order;
 		this.b = b;
 		this.iir = false;
 		if (b.length != order) throw (new IllegalArgumentException("Invalid b-array size."));
-		initFilter();
+		init();
 	}
 
-	private void initFilter() {
+	private void init() {
 		// From language spec, default value of an array of double is positive zero
 		if (iir) outputs = new double[order];
 		else outputs = new double[1];
 		inputs = new double[order];
 	}
 
-    public void initBuffer(int buffSize) {
+    private void initBuffer(int buffSize) {
         // Buffer initialized since the size is constant
         this.buffSize = buffSize;
         buffer = new double[buffSize];
@@ -86,11 +99,19 @@ public class Filter {
 		}
 	}
 
-	public void addVal(short value) {
-		addVal((int) value);
-	}
+    public void addArray(double[] arr) {
+        addArray(arr, 1);
+    }
 
-    public void addVal(int value) {
+    public void addArray(double[] arr, int downSample) {
+        ib = 0;                                         // Restart buffer pointer
+        int arrSize = arr.length;
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addVal(arr[i]);    // Add every x data
+        }
+    }
+
+    public void addVal(double value) {
         double temp;
 
 		// Shifting data
@@ -101,7 +122,8 @@ public class Filter {
 		}
 
 		// Get the new first data, so current input
-		inputs[0] = value;
+        if (rectified) inputs[0] = abs(value);
+		else inputs[0] = value;
 
 		// Calculate the convolution from koefs
 		temp = 0;

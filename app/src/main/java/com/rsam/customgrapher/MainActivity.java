@@ -63,17 +63,26 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
 
-    // This is the specs from the Arduino side. Remember that sample rate here is way higher, thus way higher cutoff too.
-    private double[] b = {0.00475620121821099,0.00531602775009807,0.00697257638013029,0.00965803223475034,0.0132624559586349,0.0176382846165920,
-                            0.0226063729569297,0.0279633277030225,0.0334898346007305,0.0389596373037971,0.0441488004914758,0.0488448779751206,
-                            0.0528556104397779,0.0560167967237531,0.0581990163752782,0.0593129282554953,0.0593129282554953,0.0581990163752782,
-                            0.0560167967237531,0.0528556104397779,0.0488448779751206,0.0441488004914758,0.0389596373037971,0.0334898346007305,
-                            0.0279633277030225,0.0226063729569297,0.0176382846165920,0.0132624559586349,0.00965803223475034,0.00697257638013029,
-                            0.00531602775009807,0.00475620121821099};
-    private Filter bpf1 = new Filter(32, b);
+    // Filters, specified based on the note on Readme.md
+    private double[] b_lpf_ch1 = {-0.000472124578466290, 0.000704149548352154, 0.00274189310474332, 0.00591248887896805, 0.00921257087324632, 0.0109695262713906, 0.00953038922526930, 0.00428143311355899, -0.00353878822093340, -0.0108376853965620, -0.0137750375665968, -0.00969532462583917, 0.000997797813952307, 0.0141295296141812, 0.0229572420560878, 0.0211513757921862, 0.00639861039263159, -0.0171381544555205, -0.0390535049402061, -0.0460804182276977, -0.0275733801766756, 0.0191691643281890, 0.0862485232208061, 0.156732800488558, 0.210190627040545, 0.230113426289257, 0.210190627040545, 0.156732800488558, 0.0862485232208061, 0.0191691643281890, -0.0275733801766756, -0.0460804182276977, -0.0390535049402061, -0.0171381544555205, 0.00639861039263159, 0.0211513757921862, 0.0229572420560878, 0.0141295296141812, 0.000997797813952307, -0.00969532462583917, -0.0137750375665968, -0.0108376853965620, -0.00353878822093340, 0.00428143311355899, 0.00953038922526930, 0.0109695262713906, 0.00921257087324632, 0.00591248887896805, 0.00274189310474332, 0.000704149548352154, -0.000472124578466290}; // 51
+    private double[] b_hpf_ch2 = {0.00699933507837955, -0.0149678167519151, 0.00311607835569475, 0.00803885630276995, 0.00422418129212178, -0.00398720213516828, -0.00896571444921871, -0.00466568580611676, 0.00613277494422169, 0.0123814810399314, 0.00538303699854521, -0.0100357111631056, -0.0176506668652045, -0.00608382389356992, 0.0161895058352412, 0.0255041559244084, 0.00662759144169743, -0.0267030901037898, -0.0389968229048643, -0.00706386098623202, 0.0487314683840281, 0.0702835890365723, 0.00732055553146396, -0.133003290106314, -0.278800975941692, 0.659254180333660, -0.278800975941692, -0.133003290106314, 0.00732055553146396, 0.0702835890365723, 0.0487314683840281, -0.00706386098623202, -0.0389968229048643, -0.0267030901037898, 0.00662759144169743, 0.0255041559244084, 0.0161895058352412, -0.00608382389356992, -0.0176506668652045, -0.0100357111631056, 0.00538303699854521, 0.0123814810399314, 0.00613277494422169, -0.00466568580611676, -0.00896571444921871, -0.00398720213516828, 0.00422418129212178, 0.00803885630276995, 0.00311607835569475, -0.0149678167519151, 0.00699933507837955}; // 51
+    private double[] b_lpf_demod = {0.00132179296512823, 0.00280744757268396, 0.00545831784089734, 0.00935169596603919, 0.0146337919246326, 0.0213226685708710, 0.0292842870857679, 0.0382122279876832, 0.0476392084864076, 0.0569720191710138, 0.0655455088410666, 0.0726938328338288, 0.0778301498374599, 0.0805161101633598, 0.0805161101633598, 0.0778301498374599, 0.0726938328338288, 0.0655455088410666, 0.0569720191710138, 0.0476392084864076, 0.0382122279876832, 0.0292842870857679, 0.0213226685708710, 0.0146337919246326, 0.00935169596603919, 0.00545831784089734, 0.00280744757268396, 0.00132179296512823}; // 28
+    private double[] b_bpf_last = {1.86063134172615e-10, 0, -2.79094701258923e-09, 0, 1.95366290881246e-08, 0, -8.46587260485400e-08, 0, 2.53976178145620e-07, 0, -5.58747591920364e-07, 0, 9.31245986533939e-07, 0, -1.19731626840078e-06, 0, 1.19731626840078e-06, 0, -9.31245986533939e-07, 0, 5.58747591920364e-07, 0, -2.53976178145620e-07, 0, 8.46587260485400e-08, 0, -1.95366290881246e-08, 0, 2.79094701258923e-09, 0, -1.86063134172615e-10}; // 31
+    private double[] a_bpf_last = {1, -27.2636248902419, 359.355963755147, -3049.63556305642, 18722.0383212545, -88567.6151612900, 335815.797056573, -1048026.96523334, 2743410.89548105, -6107670.76235757, 11684901.8045721, -19360632.8652062, 27943285.3523427, -35279454.6574221, 39074092.0806992, -38027328.1408908, 32537066.9404145, -24462618.8676193, 16134454.4910529, -9308899.60870611, 4678581.30276138, -2036505.10358459, 761787.956244342, -242361.595239282, 64678.1361217432, -14207.4289461239, 2501.49261337377, -339.408925432695, 33.3161939507062, -2.10570576573189, 0.0643470164730020}; // 31
+
+//    private Filter lpf1 = new Filter(256, b1, BufferElements2Rec, true);
+    private Filter filCh1 = new Filter(51, b_lpf_ch1, BufferElements2Rec / 21, false);      // 2100 Hz (1/21)
+    private Filter filCh2 = new Filter(51, b_hpf_ch2, BufferElements2Rec / 21, false);      // 2100 Hz (1/21)
+    private Filter filDemod1 = new Filter(28, b_lpf_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1)
+    private Filter filDemod2 = new Filter(28, b_lpf_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1)
+    private Filter filLast1 = new Filter(31, b_bpf_last, a_bpf_last, BufferElements2Rec / 210, false); // 210 Hz (1/10)
+    private Filter filLast2 = new Filter(31, b_bpf_last, a_bpf_last, BufferElements2Rec / 210, false); // 210 Hz (1/10)
+
+//    private Filter hpf1 = new Filter(255, b2, BufferElements2Rec, true);
+//    private Rectifier rect1 = new Rectifier(BufferElements2Rec);
 
 //    private double[] b = {1};
-//    private Filter bpf1 = new Filter(1, b);
+//    private Filter lpf1 = new Filter(1, b);
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -100,9 +109,17 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Synchronized data, or at least matching pace
     // Independent waveform management
         // Dual waveform
-    // TODO Demodulation
-    // TODO SPO2 calculation
+    // Demodulation
+    // Performance
+        // Demodulation is great, only it requires a very high-ordered LPF.
+        // 256th order filter is prefect, while 128th order still too noisy, and 1024th too slow.
+    // TODO near-perfect demodulation scheme
+        // Basically:
+        //  1. LPF/HPF to separate 2 signals (not narrow)
+        //  2. Rectify & LPF (not narrow)
+        //  3. Downsample a lot to be able to implement very narrow BPF or low-freq HPF
     // TODO BPM calculation
+    // TODO SPO2 calculation
     // TODO cleaning up on published version
         // Remove advanced profiler & logging
 
@@ -176,7 +193,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
                 RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
 
-        bpf1.initBuffer(BufferElements2Rec);
+//        lpf1.initBuffer(BufferElements2Rec);  // Initialized above
+//        rect1.initBuffer(BufferElements2Rec);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
     }
@@ -359,15 +377,34 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
                         recorder.read(sData, 0, BufferElements2Rec);
 //                        Log.d("", "ValA " + sData[0]);
-                        bpf1.addArray(sData);   // Add data and calculate, resulting in only 1 output at a time for FIR
+//                        rect1.addArray(sData);   // Add data and calculate, resulting in only 1 output at a time for FIR
+//                        lpf1.addArray(rect1.getBuffer());   // Add data and calculate, resulting in only 1 output at a time for FIR
+//                        lpf1.addArray(sData);
+//                        hpf1.addArray(lpf1.getBuffer());
+
+                        // Full scheme written on Readme.md
+                        filCh1.addArray(sData, 21);     // HbO2
+                        filCh2.addArray(sData, 21);     // Hb
+
+//                        // Rectify then clear carrier
+                        filDemod1.addArray(filCh1.getBuffer());
+                        filDemod2.addArray(filCh2.getBuffer());
+//
+//                        // Precise filters, clearing
+                        filLast1.addArray(filDemod1.getBuffer(), 10);
+                        filLast2.addArray(filDemod2.getBuffer(), 10);
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
-                                addWaveArray(bpf1.getBuffer(), simpleWaveformB, downSample);
-//                                addWaveData((int) bpf1.getVal(), simpleWaveformB);
+//                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
+
+//                                addWaveArray(filCh2.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filDemod1.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filDemod2.getBuffer(), simpleWaveformB, downSample);
+
+//                                addWaveData((int) lpf1.getVal(), simpleWaveformB);
                                 setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
                                 setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
                                 setDebugMessages(String.valueOf(dataNum), 3);
@@ -401,7 +438,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
 //            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
         }
-//        simpleWaveformA.postInvalidate();    // Refresh only every every batch
+    }
+
+    public void addWaveArray(int[] arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.length;
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
+        }
     }
 
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
@@ -409,7 +453,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         Log.d("", "dataLength: " + String.valueOf(arrSize));
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
-//            arr[i] = 0;
         }
     }
 
@@ -523,7 +566,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         simpleWaveform.barGap = 2;
 
         //define x-axis direction
-        simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_LEFT_RIGHT;
+        simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_RIGHT_LEFT;
 
         //define if draw opposite pole when show bars. Doing so will make negatives as absolutes.
         simpleWaveform.modeAmp = SimpleWaveform.MODE_AMP_ORIGIN;
