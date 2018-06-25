@@ -4,6 +4,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -230,7 +233,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        // Action on settings (which basically a list of multiple CheckBoxes)
+        // Action on settings
         if (id == R.id.action_settings) {
             Intent intent = new Intent(this, SettingsActivity.class);
             startActivity(intent);
@@ -247,6 +250,25 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         }
                     })
                     .show();
+
+            return true;
+        }
+
+        if (id == R.id.action_copy) {
+            if (doRun) {
+                doRun = false;
+                stopRecording();
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
+                doRun = true;
+                startRecording();
+            } else {
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
+            }
+
+            Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
+                    Toast.LENGTH_SHORT).show();
 
             return true;
         }
@@ -620,4 +642,42 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     }
 
+    // Copy a bunch of data into clipboard
+    private static final String SEPARATOR = ", ";
+    private static final String START = "[";
+    private static final String END = "]";
+
+    private void toClipboard(LinkedList<Integer> values) {
+        toClipboard(values, false);
+    }
+
+    private void toClipboard(LinkedList<Integer> values, boolean append) {
+        StringBuilder textBuilder = new StringBuilder();
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (append) {
+            try {
+                String ptext = clipboard.getPrimaryClip().getItemAt(0).getText().toString();
+                textBuilder.append(ptext);
+                textBuilder.append(SEPARATOR);
+            } catch (NullPointerException e) {
+                Log.e("", e.toString());
+            }
+        }
+
+        textBuilder.append(START);
+
+        for(int val : values) {
+            textBuilder.append(String.valueOf(val));
+            textBuilder.append(SEPARATOR);
+        }
+
+        textBuilder = new StringBuilder(textBuilder.substring(0, textBuilder.length() - SEPARATOR.length()));     // Remove last separator
+        textBuilder.append(END);
+
+        String text = textBuilder.toString();
+
+        ClipData clip = ClipData.newPlainText("values", text);
+        clipboard.setPrimaryClip(clip);
+    }
 }
