@@ -258,11 +258,13 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             if (doRun) {
                 doRun = false;
                 stopRecording();
-                toClipboard(ampListA);
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
                 doRun = true;
                 startRecording();
             } else {
-                toClipboard(ampListA);
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
             }
 
             Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
@@ -642,19 +644,39 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     // Copy a bunch of data into clipboard
     private static final String SEPARATOR = ", ";
+    private static final String START = "[";
+    private static final String END = "]";
 
     private void toClipboard(LinkedList<Integer> values) {
+        toClipboard(values, false);
+    }
+
+    private void toClipboard(LinkedList<Integer> values, boolean append) {
         StringBuilder textBuilder = new StringBuilder();
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (append) {
+            try {
+                String ptext = clipboard.getPrimaryClip().getItemAt(0).getText().toString();
+                textBuilder.append(ptext);
+                textBuilder.append(SEPARATOR);
+            } catch (NullPointerException e) {
+                Log.e("", e.toString());
+            }
+        }
+
+        textBuilder.append(START);
 
         for(int val : values) {
             textBuilder.append(String.valueOf(val));
             textBuilder.append(SEPARATOR);
         }
 
-        String text = textBuilder.toString();
-        text = text.substring(0, text.length() - SEPARATOR.length());     // Remove last separator
+        textBuilder = new StringBuilder(textBuilder.substring(0, textBuilder.length() - SEPARATOR.length()));     // Remove last separator
+        textBuilder.append(END);
 
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        String text = textBuilder.toString();
+
         ClipData clip = ClipData.newPlainText("values", text);
         clipboard.setPrimaryClip(clip);
     }
