@@ -16,11 +16,17 @@ Obtain HbO2 and Hb signal from sensor and transmit them both through a single si
 Receive a single signal containing two channels through the audio jack.
 1. Downsample by 21x   => 2100Hz
 2. Separate channels
-   - Separate HbO2, ch1 (200Hz): FIR, 210 \ 300 (Hz)   => 51st order
-   - Separate Hb, ch2 (400Hz): FIR, 300 / 390 (Hz)   => 51st order
+   - Separate HbO2, ch1 (200Hz): FIR, 210 \ 300 (Hz) => 51st order
+   - Separate Hb, ch2 (400Hz):   FIR, 300 / 390 (Hz) => 51st order
 3. Demodulate each
    - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
    - FIR, 30 \ 190 (Hz)   => 20th order
 4. Downsample by 10x   => 210Hz
 5. Noise & offset filtering
-   - IIR, 0.01 / 0.05 9 \ 15 => 31st order
+   - IIR, 0.3 / 0.8 5 \ 12 => (X) Unable to be converted to TF in Matlab
+   - Stage 1: IIR, 0.3 / 0.6, Chebyshev I => 8th order
+   - Stage 2: IIR,   5 \ 12  => 8th order
+   - All IIR filter initially not normalized at 0dB:
+        [h,w] = freqz(b,a);    % frequency response of the filter H = b/a
+        scale = 1/max(abs(h)); % scaling factor
+        b = b*scale;           % scale*H, yes ONLY the b. Scaling a too will make it revert back.

@@ -32,4 +32,10 @@
         android:orderInCategory="100"
         android:title="@string/action_about"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_copy_cust"
+        android:orderInCategory="100"
+        android:title="@string/action_copy_cust"
+        app:showAsAction="never" />
 </menu>

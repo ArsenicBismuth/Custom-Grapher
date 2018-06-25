@@ -273,6 +273,25 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             return true;
         }
 
+        if (id == R.id.action_copy_cust) {
+            if (doRun) {
+                doRun = false;
+                stopRecording();
+                toClipboard(filDemod1.getBuffer(), false);
+                toClipboard(filDemod2.getBuffer(), true);
+                doRun = true;
+                startRecording();
+            } else {
+                toClipboard(filDemod1.getBuffer(), false);
+                toClipboard(filDemod2.getBuffer(), true);
+            }
+
+            Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
+                    Toast.LENGTH_SHORT).show();
+
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -420,6 +439,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
+                                // TODO Just marking
 //                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
 
 //                                addWaveArray(filCh2.getBuffer(), simpleWaveformA, downSample);
@@ -646,6 +666,24 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final String SEPARATOR = ", ";
     private static final String START = "[";
     private static final String END = "]";
+
+
+    private void toClipboard(double[] values) {
+        toClipboard(values, false);
+    }
+
+    private void toClipboard(double[] values, boolean append) {
+        // Convert to linked list
+        LinkedList<Integer> ll = new LinkedList<Integer>();
+
+        int size = values.length;
+
+        for (int i = 0; i < size; i++) {
+            ll.add((int) values[i]);
+        }
+
+        toClipboard(ll, append);
+    }
 
     private void toClipboard(LinkedList<Integer> values) {
         toClipboard(values, false);
