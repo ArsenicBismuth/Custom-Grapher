@@ -26,7 +26,10 @@ Receive a single signal containing two channels through the audio jack.
    - IIR, 0.3 / 0.8 5 \ 12 => (X) Unable to be converted to TF in Matlab
    - Stage 1: IIR, 0.3 / 0.6, Chebyshev I => 8th order
    - Stage 2: IIR,   5 \ 12  => 8th order
-   - All IIR filter initially not normalized at 0dB:
+   - All IIR filter initially not normalized at 0dB: (switch b,a to sosMatrix for sos)
         [h,w] = freqz(b,a);    % frequency response of the filter H = b/a
         scale = 1/max(abs(h)); % scaling factor
         b = b*scale;           % scale*H, yes ONLY the b. Scaling a too will make it revert back.
+   - Tried to cascade the tf, turns out the HPF side ruins everything. Using below methods;
+        cFinal_Hbp_casc = filt(cFinal1_Hhp_b,cFinal1_Hhp_a) * filt(cFinal2_Hlp_b,cFinal2_Hlp_a);
+		fvtool(cFinal_Hbp_casc.Numerator{1,1}, cFinal_Hbp_casc.Denominator{1,1},'Fs',210,'FrequencyScale','log','FrequencyRange','Specify freq. vector','FrequencyVector',[1e-3:0.1:1e3]);
