@@ -3,7 +3,7 @@ package com.rsam.customgrapher;
 import static java.lang.Math.abs;
 
 public class Filter {
-	private int order = 32;
+	private int order = 1;
 	private boolean iir = false;
     private double[] inputs;
 	private double[] outputs;

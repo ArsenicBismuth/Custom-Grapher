@@ -1,6 +1,5 @@
 package com.rsam.customgrapher;
 
-import java.util.Collections;
 import java.util.LinkedList;
 
 import android.Manifest;
@@ -56,15 +55,13 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     LinkedList<Integer> ampListB = new LinkedList<>();
     private static final int waveListMulti = 5;         // Multiplier for the waveform list size, TODO reduce on release
 
-    private static final int RECORDER_SAMPLERATE = 44100;
-    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+    private static final int REC_RATE = 44100;
+    private static final int REC_CH = AudioFormat.CHANNEL_IN_MONO;
+    private static final int REC_AUDIO_ENC = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
     private static final int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BytesPerElement = 2;       // 2 bytes in 16bit format
-    private static int downSample = 1;                  // Get every x-th sample, also a [settings]
-
     private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
 
     // Filters, specified based on the note on Readme.md
@@ -78,6 +75,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private double[] b_last = {-0.0103816324997861, 0.00941733023553125, 0.00778074474363915, 0.00630257546869511, 0.00391737263024000, 0.000533098936603738, -0.00308943184561313, -0.00583639990674106, -0.00682049074815435, -0.00589222409738391, -0.00374070692133041, -0.00159662966009040, -0.000627075974684462, -0.00136492785376063, -0.00342071922504081, -0.00569960005133977, -0.00694574170366219, -0.00643750604269774, -0.00436843725958440, -0.00180497662647091, -0.000128305799069152, -0.000325820301048316, -0.00242102351761146, -0.00543400981049922, -0.00783472110229037, -0.00836160667306464, -0.00668527131179506, -0.00366037873617713, -0.000902881462672520, 1.38978607706233e-05, -0.00157453005047104, -0.00503458083777731, -0.00868549410949335, -0.0106598504896305, -0.00987037359707693, -0.00666580639621833, -0.00269760069998585, -0.000137868695786707, -0.000539251521013433, -0.00391698293106959, -0.00877751068092712, -0.0126106530482791, -0.0133984194752545, -0.0106147240106826, -0.00558536104815296, -0.000954611886443581, 0.000678529389677889, -0.00185685139822272, -0.00755996540877891, -0.0136516417282856, -0.0169464070939377, -0.0155294562032163, -0.00987595253977428, -0.00278924338550945, 0.00194541894538892, 0.00149268532684179, -0.00440325310498845, -0.0130893422998723, -0.0201558338694301, -0.0216721959882212, -0.0163277122105223, -0.00640641264924913, 0.00310607054795360, 0.00690264001277833, 0.00220086088236234, -0.00950435363951841, -0.0227128150735150, -0.0304006121638387, -0.0275647711496575, -0.0142000467793228, 0.00398163823690016, 0.0176726744492332, 0.0183096860325943, 0.00267444934798747, -0.0243643895441033, -0.0506438672341385, -0.0609979069710528, -0.0435787139376426, 0.00444859206400019, 0.0744348519789470, 0.148222765621028, 0.204201489646091, 0.225064221501081, 0.204201489646091, 0.148222765621028, 0.0744348519789470, 0.00444859206400019, -0.0435787139376426, -0.0609979069710528, -0.0506438672341385, -0.0243643895441033, 0.00267444934798747, 0.0183096860325943, 0.0176726744492332, 0.00398163823690016, -0.0142000467793228, -0.0275647711496575, -0.0304006121638387, -0.0227128150735150, -0.00950435363951841, 0.00220086088236234, 0.00690264001277833, 0.00310607054795360, -0.00640641264924913, -0.0163277122105223, -0.0216721959882212, -0.0201558338694301, -0.0130893422998723, -0.00440325310498845, 0.00149268532684179, 0.00194541894538892, -0.00278924338550945, -0.00987595253977428, -0.0155294562032163, -0.0169464070939377, -0.0136516417282856, -0.00755996540877891, -0.00185685139822272, 0.000678529389677889, -0.000954611886443581, -0.00558536104815296, -0.0106147240106826, -0.0133984194752545, -0.0126106530482791, -0.00877751068092712, -0.00391698293106959, -0.000539251521013433, -0.000137868695786707, -0.00269760069998585, -0.00666580639621833, -0.00987037359707693, -0.0106598504896305, -0.00868549410949335, -0.00503458083777731, -0.00157453005047104, 1.38978607706233e-05, -0.000902881462672520, -0.00366037873617713, -0.00668527131179506, -0.00836160667306464, -0.00783472110229037, -0.00543400981049922, -0.00242102351761146, -0.000325820301048316, -0.000128305799069152, -0.00180497662647091, -0.00436843725958440, -0.00643750604269774, -0.00694574170366219, -0.00569960005133977, -0.00342071922504081, -0.00136492785376063, -0.000627075974684462, -0.00159662966009040, -0.00374070692133041, -0.00589222409738391, -0.00682049074815435, -0.00583639990674106, -0.00308943184561313, 0.000533098936603738, 0.00391737263024000, 0.00630257546869511, 0.00778074474363915, 0.00941733023553125, -0.0103816324997861}; // 165
 
     // The filters, one separate system for each channel
+    // Buffer MUST be proportional to sampling rate, with full size BufferElements2Rec is used for REC_RATE
     private Filter filChA = new Filter(51, b_chA, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
     private Filter filChB = new Filter(51, b_chB, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
     private Filter filDemodA = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1 from before, 1/21 total)
@@ -89,6 +87,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final String TAG = "MainActivity";
 
     // Variables for settings menu and their initial conditions
+    private static int downSample = 1;                  // Get every x-th sample, also a [settings]
     public static boolean setBPM = true;    // Settings for BPM calculation
     public static boolean setSPO2 = true;   // Settings for BPM calculation
     public static int setOrientation = 0;   // Settings for orientation
@@ -114,7 +113,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     // Performance
         // Demodulation is great, only it requires a very high-ordered LPF.
         // 256th order filter is prefect, while 128th order still too noisy, and 1024th too slow.
-    // TODO near-perfect demodulation scheme
+    // Near-perfect demodulation scheme
         // Basically:
         //  1. LPF/HPF to separate 2 signals (not narrow)
         //  2. Rectify & LPF (not narrow)
@@ -191,8 +190,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //            }
 //        });
 
-        int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
-                RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
+        int bufferSize = AudioRecord.getMinBufferSize(REC_RATE,
+                REC_CH, REC_AUDIO_ENC);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
     }
@@ -396,8 +395,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         try {
             recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                    RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                    RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
+                    REC_RATE, REC_CH,
+                    REC_AUDIO_ENC, BufferElements2Rec * BytesPerElement);
 
             recorder.startRecording();
             recordingThread = new Thread(new Runnable() {
@@ -412,17 +411,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         }
 
                         recorder.read(sData, 0, BufferElements2Rec);
-//                        Log.d("", "ValA " + sData[0]);
 
-                        // Full scheme written on Readme.md
+                        // Full scheme written on Readme.
                         filChA.addArray(sData, 21);     // HbO2
                         filChB.addArray(sData, 21);     // Hb
 
-//                        // Rectify then clear carrier
+                        // Rectify then clear carrier
                         filDemodA.addArray(filChA.getBuffer());
                         filDemodB.addArray(filChB.getBuffer());
-//
-//                        // Precise filters, clearing
+
+                        // Precise filters, clearing
                         filLastA.addArray(filDemodA.getBuffer(), 30);
                         filLastB.addArray(filDemodB.getBuffer(), 30);
 
@@ -431,16 +429,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                             @Override
                             public void run() {
                                 // TODO Just a marking
-//                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
-
-//                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filDemodB.getBuffer(), simpleWaveformB, downSample);
-
-                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filLastA.getBuffer(), simpleWaveformB, downSample);
-
-//                                addWaveData((int) lpf1.getVal(), simpleWaveformB);
-                                setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
+                                addWaveArray(filLastA.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLastB.getBuffer(), simpleWaveformB, downSample);
+                                
+                                setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
+                                                        String.valueOf(simpleWaveformB.absMaxIndex), 1);
                                 setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
                                 setDebugMessages(String.valueOf(dataNum), 3);
                             }
@@ -499,7 +492,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;    // Normalize audio max-min to waveform height
         simpleWaveform.dataList.addFirst(value);
 
-        if (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
+        while (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
             // Wave list multi used to make the list contains more data than necessary, debugging & data acquiring purpose
             simpleWaveform.dataList.removeLast();
         }
@@ -605,6 +598,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         //define bar gap
         simpleWaveform.barGap = 2;
+
+        //define the full height range normalization
+        simpleWaveform.modeNormal = SimpleWaveform.MODE_NORMAL_MAX; // Set full height as 2*amplitude
 
         //define x-axis direction
         simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_RIGHT_LEFT;

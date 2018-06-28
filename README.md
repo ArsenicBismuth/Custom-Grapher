@@ -37,5 +37,5 @@ Receive a single signal containing two channels through the audio jack.
      - FIR, 0.2 / 0.4 8 \ 12, -60dB => 698th order => (X)
      - FIR, 0.3 / 0.5 8 \ 12, -60dB => 713th order => (X)
      - FIR, 0.1 / 0.6 8 \ 12, -60dB => 283th order => (X)
-     - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order => (X)
-	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 165th order => (X)
+     - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order
+	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
