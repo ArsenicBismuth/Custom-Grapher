@@ -74,22 +74,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private double[] b_chB = {0.00699933507837955, -0.0149678167519151, 0.00311607835569475, 0.00803885630276995, 0.00422418129212178, -0.00398720213516828, -0.00896571444921871, -0.00466568580611676, 0.00613277494422169, 0.0123814810399314, 0.00538303699854521, -0.0100357111631056, -0.0176506668652045, -0.00608382389356992, 0.0161895058352412, 0.0255041559244084, 0.00662759144169743, -0.0267030901037898, -0.0389968229048643, -0.00706386098623202, 0.0487314683840281, 0.0702835890365723, 0.00732055553146396, -0.133003290106314, -0.278800975941692, 0.659254180333660, -0.278800975941692, -0.133003290106314, 0.00732055553146396, 0.0702835890365723, 0.0487314683840281, -0.00706386098623202, -0.0389968229048643, -0.0267030901037898, 0.00662759144169743, 0.0255041559244084, 0.0161895058352412, -0.00608382389356992, -0.0176506668652045, -0.0100357111631056, 0.00538303699854521, 0.0123814810399314, 0.00613277494422169, -0.00466568580611676, -0.00896571444921871, -0.00398720213516828, 0.00422418129212178, 0.00803885630276995, 0.00311607835569475, -0.0149678167519151, 0.00699933507837955}; // 51
     // LPF
     private double[] b_demod = {0.00132179296512823, 0.00280744757268396, 0.00545831784089734, 0.00935169596603919, 0.0146337919246326, 0.0213226685708710, 0.0292842870857679, 0.0382122279876832, 0.0476392084864076, 0.0569720191710138, 0.0655455088410666, 0.0726938328338288, 0.0778301498374599, 0.0805161101633598, 0.0805161101633598, 0.0778301498374599, 0.0726938328338288, 0.0655455088410666, 0.0569720191710138, 0.0476392084864076, 0.0382122279876832, 0.0292842870857679, 0.0213226685708710, 0.0146337919246326, 0.00935169596603919, 0.00545831784089734, 0.00280744757268396, 0.00132179296512823}; // 28
-    // HPF
-    private double[] b_last1 = {0.925829844246262, -6.48080890972383, 19.4424267291715, -32.4040445486192, 32.4040445486192, -19.4424267291715, 6.48080890972383, -0.925829844246262}; // 8
-    private double[] a_last1 = {1, -6.87699033750246, 20.2677218042417, -33.1835041362790, 32.5966101096220, -19.2111683639310, 6.28985594892870, -0.882525025061476}; // 8
-    // LPF
-    private double[] b_last2 = {0.925829844246262, -6.48080890972383, 19.4424267291715, -32.4040445486192, 32.4040445486192, -19.4424267291715, 6.48080890972383, -0.925829844246262}; // 8
-    private double[] a_last2 = {1, -6.87699033750246, 20.2677218042417, -33.1835041362790, 32.5966101096220, -19.2111683639310, 6.28985594892870, -0.882525025061476}; // 8
+    // BPF
+    private double[] b_last = {-0.0103816324997861, 0.00941733023553125, 0.00778074474363915, 0.00630257546869511, 0.00391737263024000, 0.000533098936603738, -0.00308943184561313, -0.00583639990674106, -0.00682049074815435, -0.00589222409738391, -0.00374070692133041, -0.00159662966009040, -0.000627075974684462, -0.00136492785376063, -0.00342071922504081, -0.00569960005133977, -0.00694574170366219, -0.00643750604269774, -0.00436843725958440, -0.00180497662647091, -0.000128305799069152, -0.000325820301048316, -0.00242102351761146, -0.00543400981049922, -0.00783472110229037, -0.00836160667306464, -0.00668527131179506, -0.00366037873617713, -0.000902881462672520, 1.38978607706233e-05, -0.00157453005047104, -0.00503458083777731, -0.00868549410949335, -0.0106598504896305, -0.00987037359707693, -0.00666580639621833, -0.00269760069998585, -0.000137868695786707, -0.000539251521013433, -0.00391698293106959, -0.00877751068092712, -0.0126106530482791, -0.0133984194752545, -0.0106147240106826, -0.00558536104815296, -0.000954611886443581, 0.000678529389677889, -0.00185685139822272, -0.00755996540877891, -0.0136516417282856, -0.0169464070939377, -0.0155294562032163, -0.00987595253977428, -0.00278924338550945, 0.00194541894538892, 0.00149268532684179, -0.00440325310498845, -0.0130893422998723, -0.0201558338694301, -0.0216721959882212, -0.0163277122105223, -0.00640641264924913, 0.00310607054795360, 0.00690264001277833, 0.00220086088236234, -0.00950435363951841, -0.0227128150735150, -0.0304006121638387, -0.0275647711496575, -0.0142000467793228, 0.00398163823690016, 0.0176726744492332, 0.0183096860325943, 0.00267444934798747, -0.0243643895441033, -0.0506438672341385, -0.0609979069710528, -0.0435787139376426, 0.00444859206400019, 0.0744348519789470, 0.148222765621028, 0.204201489646091, 0.225064221501081, 0.204201489646091, 0.148222765621028, 0.0744348519789470, 0.00444859206400019, -0.0435787139376426, -0.0609979069710528, -0.0506438672341385, -0.0243643895441033, 0.00267444934798747, 0.0183096860325943, 0.0176726744492332, 0.00398163823690016, -0.0142000467793228, -0.0275647711496575, -0.0304006121638387, -0.0227128150735150, -0.00950435363951841, 0.00220086088236234, 0.00690264001277833, 0.00310607054795360, -0.00640641264924913, -0.0163277122105223, -0.0216721959882212, -0.0201558338694301, -0.0130893422998723, -0.00440325310498845, 0.00149268532684179, 0.00194541894538892, -0.00278924338550945, -0.00987595253977428, -0.0155294562032163, -0.0169464070939377, -0.0136516417282856, -0.00755996540877891, -0.00185685139822272, 0.000678529389677889, -0.000954611886443581, -0.00558536104815296, -0.0106147240106826, -0.0133984194752545, -0.0126106530482791, -0.00877751068092712, -0.00391698293106959, -0.000539251521013433, -0.000137868695786707, -0.00269760069998585, -0.00666580639621833, -0.00987037359707693, -0.0106598504896305, -0.00868549410949335, -0.00503458083777731, -0.00157453005047104, 1.38978607706233e-05, -0.000902881462672520, -0.00366037873617713, -0.00668527131179506, -0.00836160667306464, -0.00783472110229037, -0.00543400981049922, -0.00242102351761146, -0.000325820301048316, -0.000128305799069152, -0.00180497662647091, -0.00436843725958440, -0.00643750604269774, -0.00694574170366219, -0.00569960005133977, -0.00342071922504081, -0.00136492785376063, -0.000627075974684462, -0.00159662966009040, -0.00374070692133041, -0.00589222409738391, -0.00682049074815435, -0.00583639990674106, -0.00308943184561313, 0.000533098936603738, 0.00391737263024000, 0.00630257546869511, 0.00778074474363915, 0.00941733023553125, -0.0103816324997861}; // 165
 
     // The filters, one separate system for each channel
-    private Filter filChA = new Filter(51, b_chA, BufferElements2Rec / 21, false);      // 2100 Hz (1/21)
-    private Filter filChB = new Filter(51, b_chB, BufferElements2Rec / 21, false);      // 2100 Hz (1/21)
-    private Filter filDemodA = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1)
-    private Filter filDemodB = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1)
-    private Filter filLast1A = new Filter(8, b_last1, a_last1, BufferElements2Rec / 210, false); // 210 Hz (1/10)
-    private Filter filLast2A = new Filter(8, b_last2, a_last2, BufferElements2Rec / 210, false); // 210 Hz (1/10)
-    private Filter filLast1B = new Filter(8, b_last1, a_last1, BufferElements2Rec / 210, false); // 210 Hz (1/10)
-    private Filter filLast2B = new Filter(8, b_last2, a_last2, BufferElements2Rec / 210, false); // 210 Hz (1/10)
+    private Filter filChA = new Filter(51, b_chA, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
+    private Filter filChB = new Filter(51, b_chB, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
+    private Filter filDemodA = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1 from before, 1/21 total)
+    private Filter filDemodB = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1 from before, 1/21 total)
+    private Filter filLastA = new Filter(165, b_last, BufferElements2Rec / 630, false); // 70 Hz (1/30 from before, 1/630 total)
+    private Filter filLastB = new Filter(165, b_last, BufferElements2Rec / 630, false); // 70 Hz (1/30 from before, 1/630 total)
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -419,10 +413,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
                         recorder.read(sData, 0, BufferElements2Rec);
 //                        Log.d("", "ValA " + sData[0]);
-//                        rect1.addArray(sData);   // Add data and calculate, resulting in only 1 output at a time for FIR
-//                        lpf1.addArray(rect1.getBuffer());   // Add data and calculate, resulting in only 1 output at a time for FIR
-//                        lpf1.addArray(sData);
-//                        hpf1.addArray(lpf1.getBuffer());
 
                         // Full scheme written on Readme.md
                         filChA.addArray(sData, 21);     // HbO2
@@ -433,24 +423,21 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         filDemodB.addArray(filChB.getBuffer());
 //
 //                        // Precise filters, clearing
-                        filLast1A.addArray(filDemodA.getBuffer(), 10);
-                        filLast2A.addArray(filLast1A.getBuffer(), 1);
-
-                        filLast1B.addArray(filDemodB.getBuffer(), 10);
-                        filLast2B.addArray(filLast1B.getBuffer(), 1);
+                        filLastA.addArray(filDemodA.getBuffer(), 30);
+                        filLastB.addArray(filDemodB.getBuffer(), 30);
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                // TODO Just marking
+                                // TODO Just a marking
 //                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
 
-                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filDemodB.getBuffer(), simpleWaveformB, downSample);
+//                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
+//                                addWaveArray(filDemodB.getBuffer(), simpleWaveformB, downSample);
 
-//                                addWaveArray(filLast2A.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast2B.getBuffer(), simpleWaveformB, downSample);
+                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLastA.getBuffer(), simpleWaveformB, downSample);
 
 //                                addWaveData((int) lpf1.getVal(), simpleWaveformB);
                                 setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
@@ -482,6 +469,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
+
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
 //            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
@@ -491,6 +479,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public void addWaveArray(int[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
+
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
         }
@@ -499,6 +488,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
+
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
         }
@@ -506,12 +496,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveData(int value, SimpleWaveform simpleWaveform) {
         // Should be called inside an UI Thread since contains View.invalidate()
-        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
+        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;    // Normalize audio max-min to waveform height
         simpleWaveform.dataList.addFirst(value);
+
         if (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
             // Wave list multi used to make the list contains more data than necessary, debugging & data acquiring purpose
             simpleWaveform.dataList.removeLast();
         }
+
         dataNum++;  // Increment data count
         simpleWaveform.refresh();
 //        simpleWaveform.postInvalidate();  // Allow update view outside an UI Thread
