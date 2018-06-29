@@ -40,6 +40,14 @@ public class SimpleWaveform extends View {
     public final static int MODE_AXIS_OVER_AMP = 1;     // Specify whether axis drawn priority over amplitude
     public final static int MODE_AXIS_UNDER_AMP = 2;
     public int modePriority;
+    public final static int MODE_NORMAL_NONE = 1;
+    public final static int MODE_NORMAL_VALUE = 2;      // Normalize full height to a value (variable normalMax)
+    public final static int MODE_NORMAL_MAX = 3;        // Normalize full height based on the data list
+    public int modeNormal;                              // Setting how to scale the full height range
+
+    public int normalMax = 65536;   // Changeable
+    public int absMax = -1;         // Max of absolutes, doubled to be a range
+    public int absMaxIndex;         // Keeping the location of max, reset max if it's gone
 
     private int barUnitSize;
     private int peakUnitSize;
@@ -235,9 +243,10 @@ public class SimpleWaveform extends View {
     }
 
     BarPoints barPoints;
+    int raw;
+    int range = 1;
 
     private void drawWaveList(Canvas canvas) {
-
 
         if (!haveGotWidthHeight) {
             Log.d("","SimpleWaveform: drawWaveList() return for no width and height");
@@ -268,12 +277,40 @@ public class SimpleWaveform extends View {
             }
         }
 
+        absMaxIndex++; // Increment to simulate the moving of the latest max
+
+        // If the latest max is out of screen
+        if ((absMaxIndex > width / barGap + 2) && (absMax != -1)) {
+            absMax = -1;    // No max condition
+        } else {
+            // Only update the range based on prev draw and there's a new absMax
+            range = 2 * absMax;
+        }
+
         for (int i = 0; i < barNum; i++) {
 
+            // Getting the data
             try {
-                barPoints = new BarPoints(dataList.get(i));
+                raw = dataList.get(i);
             } catch (NullPointerException e) {
             }
+
+            if ((raw != 0) && (Math.abs(raw) > absMax)) {
+                absMax = Math.abs(raw);
+                absMaxIndex = i;
+            }
+
+            // Not fully tested with every setting cases
+            if (modeNormal != MODE_NORMAL_NONE) {
+                // Do nothing if mode is NONE
+                if (modeNormal == MODE_NORMAL_VALUE) {
+                    raw = raw * (height - 1) / normalMax;
+                } else if (modeNormal == MODE_NORMAL_MAX) {
+                    raw = raw * (height - 1) / (range);
+                }
+            }
+
+            barPoints = new BarPoints(raw);
 
             if (modeDirection == MODE_DIRECTION_LEFT_RIGHT) {
                 barPoints.xOffset = i * barGap;

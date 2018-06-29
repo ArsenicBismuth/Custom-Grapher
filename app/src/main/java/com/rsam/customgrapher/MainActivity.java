@@ -1,12 +1,15 @@
 package com.rsam.customgrapher;
 
-import java.lang.reflect.Constructor;
-import java.util.Collections;
 import java.util.LinkedList;
 
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.DialogInterface;
-import android.content.res.Configuration;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -15,6 +18,7 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -23,12 +27,12 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.rsam.customgrapher.permissions.PermissionsActivity;
 import com.rsam.customgrapher.permissions.PermissionsChecker;
+import com.rsam.customgrapher.settings.SettingsActivity;
 
 public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDataCaptureListener*/ {
 
@@ -49,37 +53,46 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     LinkedList<Integer> ampListA = new LinkedList<>();  // Data used by Waveform
     LinkedList<Integer> ampListB = new LinkedList<>();
+    private static final int waveListMulti = 5;         // Multiplier for the waveform list size, TODO reduce on release
 
-    private static final int RECORDER_SAMPLERATE = 44100;
-    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+    private static final int REC_RATE = 44100;
+    private static final int REC_CH = AudioFormat.CHANNEL_IN_MONO;
+    private static final int REC_AUDIO_ENC = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
     private static final int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BytesPerElement = 2;       // 2 bytes in 16bit format
-    private static final int downSample = 1;            // Get every x-th sample
-
     private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
 
-    // This is the specs from the Arduino side. Remember that sample rate here is way higher, thus way higher cutoff too.
-    private double[] b = {0.00475620121821099,0.00531602775009807,0.00697257638013029,0.00965803223475034,0.0132624559586349,0.0176382846165920,
-                            0.0226063729569297,0.0279633277030225,0.0334898346007305,0.0389596373037971,0.0441488004914758,0.0488448779751206,
-                            0.0528556104397779,0.0560167967237531,0.0581990163752782,0.0593129282554953,0.0593129282554953,0.0581990163752782,
-                            0.0560167967237531,0.0528556104397779,0.0488448779751206,0.0441488004914758,0.0389596373037971,0.0334898346007305,
-                            0.0279633277030225,0.0226063729569297,0.0176382846165920,0.0132624559586349,0.00965803223475034,0.00697257638013029,
-                            0.00531602775009807,0.00475620121821099};
-    private Filter bpf1 = new Filter(32, b);
+    // Filters, specified based on the note on Readme.md
+    // LPF
+    private double[] b_chA = {-0.000472124578466290, 0.000704149548352154, 0.00274189310474332, 0.00591248887896805, 0.00921257087324632, 0.0109695262713906, 0.00953038922526930, 0.00428143311355899, -0.00353878822093340, -0.0108376853965620, -0.0137750375665968, -0.00969532462583917, 0.000997797813952307, 0.0141295296141812, 0.0229572420560878, 0.0211513757921862, 0.00639861039263159, -0.0171381544555205, -0.0390535049402061, -0.0460804182276977, -0.0275733801766756, 0.0191691643281890, 0.0862485232208061, 0.156732800488558, 0.210190627040545, 0.230113426289257, 0.210190627040545, 0.156732800488558, 0.0862485232208061, 0.0191691643281890, -0.0275733801766756, -0.0460804182276977, -0.0390535049402061, -0.0171381544555205, 0.00639861039263159, 0.0211513757921862, 0.0229572420560878, 0.0141295296141812, 0.000997797813952307, -0.00969532462583917, -0.0137750375665968, -0.0108376853965620, -0.00353878822093340, 0.00428143311355899, 0.00953038922526930, 0.0109695262713906, 0.00921257087324632, 0.00591248887896805, 0.00274189310474332, 0.000704149548352154, -0.000472124578466290}; // 51
+    // HPF
+    private double[] b_chB = {0.00699933507837955, -0.0149678167519151, 0.00311607835569475, 0.00803885630276995, 0.00422418129212178, -0.00398720213516828, -0.00896571444921871, -0.00466568580611676, 0.00613277494422169, 0.0123814810399314, 0.00538303699854521, -0.0100357111631056, -0.0176506668652045, -0.00608382389356992, 0.0161895058352412, 0.0255041559244084, 0.00662759144169743, -0.0267030901037898, -0.0389968229048643, -0.00706386098623202, 0.0487314683840281, 0.0702835890365723, 0.00732055553146396, -0.133003290106314, -0.278800975941692, 0.659254180333660, -0.278800975941692, -0.133003290106314, 0.00732055553146396, 0.0702835890365723, 0.0487314683840281, -0.00706386098623202, -0.0389968229048643, -0.0267030901037898, 0.00662759144169743, 0.0255041559244084, 0.0161895058352412, -0.00608382389356992, -0.0176506668652045, -0.0100357111631056, 0.00538303699854521, 0.0123814810399314, 0.00613277494422169, -0.00466568580611676, -0.00896571444921871, -0.00398720213516828, 0.00422418129212178, 0.00803885630276995, 0.00311607835569475, -0.0149678167519151, 0.00699933507837955}; // 51
+    // LPF
+    private double[] b_demod = {0.00132179296512823, 0.00280744757268396, 0.00545831784089734, 0.00935169596603919, 0.0146337919246326, 0.0213226685708710, 0.0292842870857679, 0.0382122279876832, 0.0476392084864076, 0.0569720191710138, 0.0655455088410666, 0.0726938328338288, 0.0778301498374599, 0.0805161101633598, 0.0805161101633598, 0.0778301498374599, 0.0726938328338288, 0.0655455088410666, 0.0569720191710138, 0.0476392084864076, 0.0382122279876832, 0.0292842870857679, 0.0213226685708710, 0.0146337919246326, 0.00935169596603919, 0.00545831784089734, 0.00280744757268396, 0.00132179296512823}; // 28
+    // BPF
+    private double[] b_last = {-0.0103816324997861, 0.00941733023553125, 0.00778074474363915, 0.00630257546869511, 0.00391737263024000, 0.000533098936603738, -0.00308943184561313, -0.00583639990674106, -0.00682049074815435, -0.00589222409738391, -0.00374070692133041, -0.00159662966009040, -0.000627075974684462, -0.00136492785376063, -0.00342071922504081, -0.00569960005133977, -0.00694574170366219, -0.00643750604269774, -0.00436843725958440, -0.00180497662647091, -0.000128305799069152, -0.000325820301048316, -0.00242102351761146, -0.00543400981049922, -0.00783472110229037, -0.00836160667306464, -0.00668527131179506, -0.00366037873617713, -0.000902881462672520, 1.38978607706233e-05, -0.00157453005047104, -0.00503458083777731, -0.00868549410949335, -0.0106598504896305, -0.00987037359707693, -0.00666580639621833, -0.00269760069998585, -0.000137868695786707, -0.000539251521013433, -0.00391698293106959, -0.00877751068092712, -0.0126106530482791, -0.0133984194752545, -0.0106147240106826, -0.00558536104815296, -0.000954611886443581, 0.000678529389677889, -0.00185685139822272, -0.00755996540877891, -0.0136516417282856, -0.0169464070939377, -0.0155294562032163, -0.00987595253977428, -0.00278924338550945, 0.00194541894538892, 0.00149268532684179, -0.00440325310498845, -0.0130893422998723, -0.0201558338694301, -0.0216721959882212, -0.0163277122105223, -0.00640641264924913, 0.00310607054795360, 0.00690264001277833, 0.00220086088236234, -0.00950435363951841, -0.0227128150735150, -0.0304006121638387, -0.0275647711496575, -0.0142000467793228, 0.00398163823690016, 0.0176726744492332, 0.0183096860325943, 0.00267444934798747, -0.0243643895441033, -0.0506438672341385, -0.0609979069710528, -0.0435787139376426, 0.00444859206400019, 0.0744348519789470, 0.148222765621028, 0.204201489646091, 0.225064221501081, 0.204201489646091, 0.148222765621028, 0.0744348519789470, 0.00444859206400019, -0.0435787139376426, -0.0609979069710528, -0.0506438672341385, -0.0243643895441033, 0.00267444934798747, 0.0183096860325943, 0.0176726744492332, 0.00398163823690016, -0.0142000467793228, -0.0275647711496575, -0.0304006121638387, -0.0227128150735150, -0.00950435363951841, 0.00220086088236234, 0.00690264001277833, 0.00310607054795360, -0.00640641264924913, -0.0163277122105223, -0.0216721959882212, -0.0201558338694301, -0.0130893422998723, -0.00440325310498845, 0.00149268532684179, 0.00194541894538892, -0.00278924338550945, -0.00987595253977428, -0.0155294562032163, -0.0169464070939377, -0.0136516417282856, -0.00755996540877891, -0.00185685139822272, 0.000678529389677889, -0.000954611886443581, -0.00558536104815296, -0.0106147240106826, -0.0133984194752545, -0.0126106530482791, -0.00877751068092712, -0.00391698293106959, -0.000539251521013433, -0.000137868695786707, -0.00269760069998585, -0.00666580639621833, -0.00987037359707693, -0.0106598504896305, -0.00868549410949335, -0.00503458083777731, -0.00157453005047104, 1.38978607706233e-05, -0.000902881462672520, -0.00366037873617713, -0.00668527131179506, -0.00836160667306464, -0.00783472110229037, -0.00543400981049922, -0.00242102351761146, -0.000325820301048316, -0.000128305799069152, -0.00180497662647091, -0.00436843725958440, -0.00643750604269774, -0.00694574170366219, -0.00569960005133977, -0.00342071922504081, -0.00136492785376063, -0.000627075974684462, -0.00159662966009040, -0.00374070692133041, -0.00589222409738391, -0.00682049074815435, -0.00583639990674106, -0.00308943184561313, 0.000533098936603738, 0.00391737263024000, 0.00630257546869511, 0.00778074474363915, 0.00941733023553125, -0.0103816324997861}; // 165
 
-//    private double[] b = {1};
-//    private Filter bpf1 = new Filter(1, b);
+    // The filters, one separate system for each channel
+    // Buffer MUST be proportional to sampling rate, with full size BufferElements2Rec is used for REC_RATE
+    private Filter filChA = new Filter(51, b_chA, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
+    private Filter filChB = new Filter(51, b_chB, BufferElements2Rec / 21, false);      // 2100 Hz (1/21 from before)
+    private Filter filDemodA = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1 from before, 1/21 total)
+    private Filter filDemodB = new Filter(28, b_demod, BufferElements2Rec / 21, true);  // 2100 Hz (1/1 from before, 1/21 total)
+    private Filter filLastA = new Filter(165, b_last, BufferElements2Rec / 630, false); // 70 Hz (1/30 from before, 1/630 total)
+    private Filter filLastB = new Filter(165, b_last, BufferElements2Rec / 630, false); // 70 Hz (1/30 from before, 1/630 total)
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
 
     // Variables for settings menu and their initial conditions
+    private static int downSample = 1;                  // Get every x-th sample, also a [settings]
     public static boolean setBPM = true;    // Settings for BPM calculation
     public static boolean setSPO2 = true;   // Settings for BPM calculation
+    public static int setOrientation = 0;   // Settings for orientation
     public static boolean setDebug = false; // Settings for debug message
+    public static boolean setReset = false; // Settings for reset settings
 //	public static float zoomHor = 1;		// Settings for waveform horizontal scale
 //	public static float zoomVer = 1;		// Settings for waveform vertical scale
     public static boolean doRun = true;     // Run/Pause functionality
@@ -90,15 +103,23 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    // TO-DO layout editor compatibility with simpleWaveform
+    // Layout editor compatibility with simpleWaveform
         // Or at least change the bg canvas to darker white like the original
-    // TO-DO general filter implementation, still not even filtering, and data is somehow cut to a 1/4
+    // General filter implementation, still not even filtering, and data is somehow cut to a 1/4
         // Synchronized data, or at least matching pace
-    // TO-DO independent waveform management
+    // Independent waveform management
         // Dual waveform
-    // TODO Demodulation
-    // TODO SPO2 calculation
+    // Demodulation
+    // Performance
+        // Demodulation is great, only it requires a very high-ordered LPF.
+        // 256th order filter is prefect, while 128th order still too noisy, and 1024th too slow.
+    // Near-perfect demodulation scheme
+        // Basically:
+        //  1. LPF/HPF to separate 2 signals (not narrow)
+        //  2. Rectify & LPF (not narrow)
+        //  3. Downsample a lot to be able to implement very narrow BPF or low-freq HPF
     // TODO BPM calculation
+    // TODO SPO2 calculation
     // TODO cleaning up on published version
         // Remove advanced profiler & logging
 
@@ -106,6 +127,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Main GUIs initialization
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -113,7 +136,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         tSPO2 = findViewById(R.id.textSPO2);
 
         setDebugMessages("",0); // Empty values
-        applySettings();                        // Apply settings variables to layout
 
         final FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -137,6 +159,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
         });
 
+        // Settings initialization
+        // Making sure Shared Pref file initialized with default values.
+        // Last parameter specifies to read the data if the method has been called before,
+        // but it won't reset; just an efficiency flag.
+        PreferenceManager.setDefaultValues(this, R.xml.pref_general, false);
+            // Add other headers' pref_ if available/used
+
+        // Waveforms initialization
         simpleWaveformA = findViewById(R.id.simpleWaveformA);
         simpleWaveformA.setVisibility(View.VISIBLE);
 
@@ -160,14 +190,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //            }
 //        });
 
-        int bufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE,
-                RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
-
-        bpf1.initBuffer(BufferElements2Rec);
+        int bufferSize = AudioRecord.getMinBufferSize(REC_RATE,
+                REC_CH, REC_AUDIO_ENC);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
-
-//        timeScreen = new TimeDiff();
     }
 
     @Override
@@ -182,6 +208,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             doRun = fabState;
             if (doRun) startRecording();
         }
+
+        // Apply settings
+        applySettings();
     }
 
     @Override
@@ -189,6 +218,143 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         super.onPause();
         doRun = false;
         stopRecording();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        // Action on settings
+        if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+
+        if (id == R.id.action_about) {
+            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+            dialog.setTitle(getString(R.string.action_about))
+                    .setMessage(getString(R.string.about_content))
+                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // continue with delete
+                        }
+                    })
+                    .show();
+
+            return true;
+        }
+
+        if (id == R.id.action_copy) {
+            if (doRun) {
+                doRun = false;
+                stopRecording();
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
+                doRun = true;
+                startRecording();
+            } else {
+                toClipboard(ampListA, false);
+                toClipboard(ampListB, true);
+            }
+
+            Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
+                    Toast.LENGTH_SHORT).show();
+
+            return true;
+        }
+
+        if (id == R.id.action_copy_cust) {
+            if (doRun) {
+                doRun = false;
+                stopRecording();
+                toClipboard(filDemodA.getBuffer(), false);
+                toClipboard(filDemodB.getBuffer(), true);
+                doRun = true;
+                startRecording();
+            } else {
+                toClipboard(filDemodA.getBuffer(), false);
+                toClipboard(filDemodB.getBuffer(), true);
+            }
+
+            Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
+                    Toast.LENGTH_SHORT).show();
+
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void applySettings() {
+        Log.d("", "applySettings");
+
+        // Get Shared Preferences under the default name "com.example.something_preferences"
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(this);
+
+        // Get the values
+        // Def value here is the value if no value found for specified key (including xml default val)
+        setBPM = sharedPref.getBoolean("switch-bpm", true);
+        setSPO2 = sharedPref.getBoolean("switch-spo2", true);
+        setOrientation = Integer.parseInt(sharedPref.getString("list-orientation", "0"));
+        setDebug = sharedPref.getBoolean("switch-debug", false);
+        downSample = Integer.parseInt(sharedPref.getString("value-downsample", "10"));
+        setReset = sharedPref.getBoolean("switch-reset", false);
+
+        if (setReset) {
+            // Force the settings to revert to xml default values
+            Log.d("", "Reset");
+//            sharedPref.edit().clear().apply();  // Apply() returns no value, faster because asynchronous
+            sharedPref.edit().clear().commit();  // But Apply() might make the settings not fully reset
+
+            PreferenceManager.
+                    setDefaultValues(this, R.xml.pref_general, false);    // Reread def values
+
+            setReset = false;   // Force change, despite default value is already false. Prevent human error.
+            applySettings();    // Reapply settings
+            return;
+        }
+
+        // Apply settings variables to layout
+        View layout = findViewById(R.id.layoutBPM);
+        if (setBPM) {
+            layout.setVisibility(View.VISIBLE);
+            // Also enable calculation
+        } else {
+            // Remove as a layout rather than just changing visibility
+            layout.setVisibility(View.GONE);
+            // Also disable calculation
+        }
+
+        layout = findViewById(R.id.layoutSPO2);
+        if (setSPO2) {
+            layout.setVisibility(View.VISIBLE);
+            // Also enable calculation
+        } else {
+            layout.setVisibility(View.GONE);
+            // Also disable calculation
+        }
+
+        switch (setOrientation) {
+            case 2 :  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); break;
+            case 1 :  setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE); break;
+            default : setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        }
+
+        if (downSample < 1) downSample = 1;
+
+        layout = findViewById(R.id.layoutDebug);
+        if (setDebug) {
+            layout.setVisibility(View.VISIBLE);
+        } else {
+            layout.setVisibility(View.INVISIBLE);
+        }
+
+//        setPower(valAvg, valPeak); // Refresh the power texts
     }
 
     private void startPermissionsActivity() {
@@ -229,8 +395,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         try {
             recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                    RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                    RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
+                    REC_RATE, REC_CH,
+                    REC_AUDIO_ENC, BufferElements2Rec * BytesPerElement);
 
             recorder.startRecording();
             recordingThread = new Thread(new Runnable() {
@@ -245,17 +411,29 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         }
 
                         recorder.read(sData, 0, BufferElements2Rec);
-//                        Log.d("", "ValA " + sData[0]);
-                        bpf1.addArray(sData);   // Add data and calculate, resulting in only 1 output at a time for FIR
+
+                        // Full scheme written on Readme.
+                        filChA.addArray(sData, 21);     // HbO2
+                        filChB.addArray(sData, 21);     // Hb
+
+                        // Rectify then clear carrier
+                        filDemodA.addArray(filChA.getBuffer());
+                        filDemodB.addArray(filChB.getBuffer());
+
+                        // Precise filters, clearing
+                        filLastA.addArray(filDemodA.getBuffer(), 30);
+                        filLastB.addArray(filDemodB.getBuffer(), 30);
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                addWaveArray(sData, simpleWaveformA, downSample);   // Remember addWaveArray will do zeroing
-                                addWaveArray(bpf1.getBuffer(), simpleWaveformB, downSample);
-//                                addWaveData((int) bpf1.getVal(), simpleWaveformB);
-                                setDebugMessages(String.valueOf(Collections.max(ampListA)), 1);
+                                // TODO Just a marking
+                                addWaveArray(filLastA.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLastB.getBuffer(), simpleWaveformB, downSample);
+                                
+                                setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
+                                                        String.valueOf(simpleWaveformB.absMaxIndex), 1);
                                 setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
                                 setDebugMessages(String.valueOf(dataNum), 3);
                             }
@@ -284,29 +462,41 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
+
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
 //            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
         }
-//        simpleWaveformA.postInvalidate();    // Refresh only every every batch
+    }
+
+    public void addWaveArray(int[] arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.length;
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
+
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
+        }
     }
 
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
+
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
-//            arr[i] = 0;
         }
     }
 
     public void addWaveData(int value, SimpleWaveform simpleWaveform) {
         // Should be called inside an UI Thread since contains View.invalidate()
-        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;
+        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;    // Normalize audio max-min to waveform height
         simpleWaveform.dataList.addFirst(value);
-        if (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap + 2) {
+
+        while (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
+            // Wave list multi used to make the list contains more data than necessary, debugging & data acquiring purpose
             simpleWaveform.dataList.removeLast();
         }
+
         dataNum++;  // Increment data count
         simpleWaveform.refresh();
 //        simpleWaveform.postInvalidate();  // Allow update view outside an UI Thread
@@ -329,101 +519,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        // Action on settings (which basically a list of multiple CheckBoxes)
-        if (id == R.id.action_settings) {
-            final boolean[] selectedItems = {setBPM, setSPO2, setDebug}; // Map setting items to their corresponding variables
-
-            // Trust me, this is the best template out there. Browsing again won't give better stuffs.
-            // Just need to change mapping above and the corresponding effects below, inside "onClick" & applySettings().
-            // Also, see strings.xml to see the settings content (R.array.settings_content)
-            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-            dialog.setTitle(getString(R.string.action_settings))
-                    .setMultiChoiceItems(R.array.settings_content, selectedItems, new DialogInterface.OnMultiChoiceClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int indexSelected, boolean isChecked) {
-                            // If the user checked the item, set it to true in the items array
-                            // Else, if the item is unchecked, set it to false in the items array
-                            selectedItems[indexSelected] = isChecked;
-                        }
-                    })
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int id) {
-                            // Apply settings to variables
-                            setBPM = selectedItems[0];
-                            setSPO2 = selectedItems[1];
-                            setDebug = selectedItems[2];
-
-                            // Apply settings variables to layout
-                            applySettings();
-                        }
-                    })
-                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int id) {
-                            // Don't apply settings
-                        }
-                    })
-                    .show();
-            return true;
-        }
-
-        if (id == R.id.action_about) {
-            AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-            dialog.setTitle(getString(R.string.action_about))
-                    .setMessage(getString(R.string.about_content))
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            // continue with delete
-                        }
-                    })
-                    .show();
-
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void applySettings() {
-
-        // Apply settings variables to layout
-        View layout = findViewById(R.id.layoutBPM);
-        if (setBPM) {
-            layout.setVisibility(View.VISIBLE);
-            // Also enable calculation
-        } else {
-            // Remove as a layout rather than just changing visibility
-            layout.setVisibility(View.GONE);
-            // Also disable calculation
-        }
-
-        layout = findViewById(R.id.layoutSPO2);
-        if (setSPO2) {
-            layout.setVisibility(View.VISIBLE);
-            // Also enable calculation
-        } else {
-            layout.setVisibility(View.GONE);
-            // Also disable calculation
-        }
-
-        layout = findViewById(R.id.layoutDebug);
-        if (setDebug) {
-            layout.setVisibility(View.VISIBLE);
-        } else {
-            layout.setVisibility(View.INVISIBLE);
-        }
-
-//        setPower(valAvg, valPeak); // Refresh the power texts
     }
 
     private int calculateBPM(int values) {
@@ -504,8 +599,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         //define bar gap
         simpleWaveform.barGap = 2;
 
+        //define the full height range normalization
+        simpleWaveform.modeNormal = SimpleWaveform.MODE_NORMAL_MAX; // Set full height as 2*amplitude
+
         //define x-axis direction
-        simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_LEFT_RIGHT;
+        simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_RIGHT_LEFT;
 
         //define if draw opposite pole when show bars. Doing so will make negatives as absolutes.
         simpleWaveform.modeAmp = SimpleWaveform.MODE_AMP_ORIGIN;
@@ -559,4 +657,61 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     }
 
+    // Copy a bunch of data into clipboard
+//    private static final String SEPARATOR = ", ";
+    private static final String SEPARATOR = ",";
+    private static final String START = "[";
+    private static final String END = "]";
+
+
+    private void toClipboard(double[] values) {
+        toClipboard(values, false);
+    }
+
+    private void toClipboard(double[] values, boolean append) {
+        // Convert to linked list
+        LinkedList<Integer> ll = new LinkedList<Integer>();
+
+        int size = values.length;
+
+        for (int i = 0; i < size; i++) {
+            ll.add((int) values[i]);
+        }
+
+        toClipboard(ll, append);
+    }
+
+    private void toClipboard(LinkedList<Integer> values) {
+        toClipboard(values, false);
+    }
+
+    private void toClipboard(LinkedList<Integer> values, boolean append) {
+        StringBuilder textBuilder = new StringBuilder();
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (append) {
+            try {
+                String ptext = clipboard.getPrimaryClip().getItemAt(0).getText().toString();
+                textBuilder.append(ptext);
+                textBuilder.append(SEPARATOR);
+            } catch (NullPointerException e) {
+                Log.e("", e.toString());
+            }
+        }
+
+        textBuilder.append(START);
+
+        for(int val : values) {
+            textBuilder.append(String.valueOf(val));
+            textBuilder.append(SEPARATOR);
+        }
+
+        textBuilder = new StringBuilder(textBuilder.substring(0, textBuilder.length() - SEPARATOR.length()));     // Remove last separator
+        textBuilder.append(END);
+
+        String text = textBuilder.toString();
+
+        ClipData clip = ClipData.newPlainText("values", text);
+        clipboard.setPrimaryClip(clip);
+    }
 }
