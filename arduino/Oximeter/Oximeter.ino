@@ -2,29 +2,38 @@
 #include <Adafruit_MCP4725.h>
 #include "Filter.h"
 
-#define ORDER 32
-#define FS 730
+#define FS 9000
+#define FSC 1500    // Data rate at the time for modulation
+
+// Carriers
+#define FC1 = 200;
+#define FC2 = 500;
 
 Adafruit_MCP4725 dac;
 
+// Filter Coefficients (from MATLAB
+// LPF
+float bNoise[33] = {-0.00403470692324842, 0.0182225145403899, 0.0131899782039394, 0.0149826746343488, 0.0183062083083345, 0.0221051451337311, 0.0261117305545169, 0.0301973612472578, 0.0342530062990987, 0.0381697736260240, 0.0418386379590894, 0.0451539032847044, 0.0480173236758640, 0.0503421327520257, 0.0520566797183028, 0.0531074708780736, 0.0534614599996321, 0.0531074708780736, 0.0520566797183028, 0.0503421327520257, 0.0480173236758640, 0.0451539032847044, 0.0418386379590894, 0.0381697736260240, 0.0342530062990987, 0.0301973612472578, 0.0261117305545169, 0.0221051451337311, 0.0183062083083345, 0.0149826746343488, 0.0131899782039394, 0.0182225145403899, -0.00403470692324842};
+// HPF
+float bNorm[24] = {0.00892989819282400, 0.0333839577844101, -0.00240756368983904, -0.0152616506593997, -0.0333156498206383, -0.0289015336720673, 0.00253344956193304, 0.0506090102439507, 0.0848875699648763, 0.0645789814297148, -0.0619687093364281, -0.579666988755414, 0.579666988755414, 0.0619687093364281, -0.0645789814297148, -0.0848875699648763, -0.0506090102439507, -0.00253344956193304, 0.0289015336720673, 0.0333156498206383, 0.0152616506593997, 0.00240756368983904, -0.0333839577844101, -0.00892989819282400};
+
+// Downsampling rate are specified relative to previous process
+// Upsampling rate are specified as absolute to FS or main loop rate
+#define DS0 2                       // Downsampling rate FS0 = FS / DS1
+Filter filNoiseA(32, bNoise);       // Remember b's passed by reference
+Filter filNoiseB(32, bNoise);
+Filter filNormA(32, bNorm);
+Filter filNormB(32, bNorm);
+#define DS2 15
+#define US3 FS/FSC                  // Actually used for upsampling, but still < FS
+#define MAXINDEX DS0 * DS2 * US3    // Used to reset the iterator, avoiding overflow
+
 // Var
-//float buffer_input[ORDER] = {0};
-//float buffer_output[ORDER] = {0};
 int input = 0;
 int output = 0;
-float temp = 0;
-int i = 0;
-unsigned long time = 0;
-
+float ch1;
+float ch2;
 long n = 0;
-int fc = 50;
-
-// Filter Coefficients (from MATLAB):
-float b[ORDER] = {0.00475620121821099,0.00531602775009807,0.00697257638013029,0.00965803223475034,0.0132624559586349,0.0176382846165920,0.0226063729569297,0.0279633277030225,0.0334898346007305,0.0389596373037971,0.0441488004914758,0.0488448779751206,0.0528556104397779,0.0560167967237531,0.0581990163752782,0.0593129282554953,0.0593129282554953,0.0581990163752782,0.0560167967237531,0.0528556104397779,0.0488448779751206,0.0441488004914758,0.0389596373037971,0.0334898346007305,0.0279633277030225,0.0226063729569297,0.0176382846165920,0.0132624559586349,0.00965803223475034,0.00697257638013029,0.00531602775009807,0.00475620121821099};
-//float b[ORDER] = {-0.00126123490547738,-0.00184849330106461,-0.00277122455078149,-0.00389561547918654,-0.00474014009013690,-0.00450658595875769,-0.00221711222564580,0.00306513721280641,0.0119792920419832,0.0246356833512128,0.0404716459636847,0.0582391630524604,0.0761407757778390,0.0920959490127426,0.104088464123935,0.110524295974387,0.110524295974387,0.104088464123935,0.0920959490127426,0.0761407757778390,0.0582391630524604,0.0404716459636847,0.0246356833512128,0.0119792920419832,0.00306513721280641,-0.00221711222564580,-0.00450658595875769,-0.00474014009013690,-0.00389561547918654,-0.00277122455078149,-0.00184849330106461,-0.00126123490547738};
-//float b[ORDER] = {0.00469507996477189,0.00525788889861302,0.00690879257469375,0.00958574056962078,0.0131835592512375,0.0175582175467350,0.0225327439170178,0.0279045485053358,0.0334538438529784,0.0389528099869197,0.0441751171646823,0.0489054035433550,0.0529483062440749,0.0561366626874889,0.0583385339124463,0.0594627513800291,0.0594627513800291,0.0583385339124463,0.0561366626874889,0.0529483062440749,0.0489054035433550,0.0441751171646823,0.0389528099869197,0.0334538438529784,0.0279045485053358,0.0225327439170178,0.0175582175467350,0.0131835592512375,0.00958574056962078,0.00690879257469375,0.00525788889861302,0.00469507996477189};
-
-Filter bpf1(ORDER, b);  // Remember b's passed by reference
 
 void setup() {
     Serial.begin(115200);
@@ -34,22 +43,50 @@ void setup() {
 
 void loop() {
     input = analogRead(A2);
-    bpf1.addVal(input);
-    output = bpf1.getVal() * 2;                 // 10-bit ADC (1024) => 12-bit DAC (4096)
-                                                // Turns out 5V (4096) is too high
-    
-    Serial.print(input);
-    Serial.print(" ");
-    Serial.print(output);
 
-    output *= cos(2 * PI * fc * n / FS) * 0.5;
-    output += 2048;                             // Offset to prevent negative
-    if (output <= 0) output = 0;
+    // Data mapping & downsampling, add data only every x indexes
+    // TODO electrical settings on switching
+    if (n % DS0 == 0) {
+        if (n % 4 == 0) {
+            // HbO2
+            filNoiseA.addVal(input);
+        } else if (n % 4 == 1) {
+            // Off
+        } else if (n % 4 == 2) {
+            // Hb
+            filNoiseA.addVal(input);
+        } else if (n % 4 == 3) {
+            // Off
+        }
+    }
+    if (n % (DS0 * DS2) == 0) {
+        filNormA.addVal(filNoiseA.getVal());
+        filNormB.addVal(filNoiseB.getVal());
+    }
 
-    Serial.print(" ");
-    Serial.println(output);
+    // Upsampling, value relative to FS or main loop rate
+    if (n % US3 == 0) {
+        // The rate at which modulation updated
+        ch1 = filNormA.getVal();
+        ch2 = filNormB.getVal();
+    }
 
-    dac.setVoltage(output, false);
+//    // Should be 10-bit ADC (1024) => 12-bit DAC (4096) for 5V => 5V
+//    // But turns out 5V (4096) is too high for audio jack input
+//    output = filNoiseA.getVal() * 2;
+//                                                
+//    Serial.print(input);
+//    Serial.print(" ");
+//    Serial.print(filNoiseA.getVal());
+//
+//    output *= cos(2 * PI * fc * n / FS) * 0.5;
+//    output += 2048;                             // Offset to prevent negative
+//    if (output <= 0) output = 0;
+//
+//    Serial.print(" ");
+//    Serial.println(output);
+//
+//    dac.setVoltage(output, false);
     
     n++;
 }

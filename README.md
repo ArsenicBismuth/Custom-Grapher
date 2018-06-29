@@ -2,15 +2,41 @@
 ### Full Scheme
 **MCU** (Fs = ~9000Hz)
 Obtain HbO2 and Hb signal from sensor and transmit them both through a single signal.
+Sampling may be done through interrupt for more accurate rate. Another way would be
+doing it directly, and design filters which with cutoff deviation in mind.
+
+Everything with "Test" tag shows parameter very likely to change in current implementation.
+Current implementation specified as:
+
+   - Single signal HbO2
+   - No diode switching, but data input switching implemented
+
+Downsample specs are written respective to previous condition.
+
 1. Read analog data for Hb and HbO2 alternately
-2. Noise & offset filtering
-   - *yet*
-4. Amplify XdB for better SNR
-5. Modulate each using DSBAM
+   - 4 states for each cycle: R, off, IR, off
+   - The off state can be used to inspect offset
+   - Due to low order of the analog system, effect from
+	 previous states would be short but still exist
+2. Test: Downsample by 8x => 1125Hz (Simulating switching)
+   - Since there're 4 input states, total downsample will be 2x ==> 4500Hz
+3. Noise filtering
+   - FIR, 12 \ ?, -30dB, 33nd order => 12 \ 30
+4. Test: Downsample by 15x => 75Hz
+4. Offset filtering
+   - FIR, 8 \ 12, -30dB => 24th order
+5. Test: Amplify 2x for better SNR
+   - Signal Vpp must be less than 1/2 audio jack range for modulation purpose
+6. Upsample to 1500Hz & interpolate => Test: 20x prev or 1/6x total
+   - Interpolation receives at min 2 data, and values as small as
+     the interpolation rate to be created
+   - Test: No interpolation
+6. Modulate each using DSBAM
    - HbO2, ch1 (200Hz)
    - Hb, ch2 (500Hz)
-6. Amplify XdB so that each has amplitude < half the full range
-7. Mix ch1 & ch2 and transmit
+   - Test: Modulation index 100% (signal zero at 1/2 modulated signal peak)
+7. Decrease Xx so that each has amplitude < half the full range
+8. Mix ch1 & ch2 and transmit
    
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
