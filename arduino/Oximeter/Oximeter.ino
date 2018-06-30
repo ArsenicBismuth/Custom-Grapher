@@ -6,8 +6,8 @@
 #define FSC 1500    // Data rate at the time for modulation
 
 // Carriers
-#define FC1 = 200;
-#define FC2 = 500;
+#define FCA 200
+#define FCB 500
 
 Adafruit_MCP4725 dac;
 
@@ -25,15 +25,25 @@ Filter filNoiseB(32, bNoise);
 Filter filNormA(32, bNorm);
 Filter filNormB(32, bNorm);
 #define DS2 15
-#define US3 FS/FSC                  // Actually used for upsampling, but still < FS
-#define MAXINDEX DS0 * DS2 * US3    // Used to reset the iterator, avoiding overflow
+#define US3 20
+#define MAXINDEX (DS0 * 4L * DS2 * (FS/FCA) * (FS/FCB))     // Used to reset the iterator, avoiding overflow
 
 // Var
-int input = 0;
+int input;
+int inA;
+int inB;
+int inOff;
+float chA = 0;
+float chB = 0;
+float filA = 0;
+float filB = 0;
+float interA = 0;
+float interB = 0;
+float distA = 0;
+float distB = 0;
 int output = 0;
-float ch1;
-float ch2;
-long n = 0;
+long n = 1;     // Global index
+unsigned long t0, t1, t2, t3, t4, t5;
 
 void setup() {
     Serial.begin(115200);
@@ -42,51 +52,74 @@ void setup() {
 }
 
 void loop() {
+    t0 = micros();
     input = analogRead(A2);
+    
+    t1 = micros();
 
     // Data mapping & downsampling, add data only every x indexes
     // TODO electrical settings on switching
     if (n % DS0 == 0) {
         if (n % 4 == 0) {
             // HbO2
+            inA = input;
             filNoiseA.addVal(input);
         } else if (n % 4 == 1) {
             // Off
+            inOff = input;
         } else if (n % 4 == 2) {
             // Hb
-            filNoiseA.addVal(input);
+            inB = input;
+            filNoiseB.addVal(input);
         } else if (n % 4 == 3) {
             // Off
+            inOff = input;
         }
     }
-    if (n % (DS0 * DS2) == 0) {
+
+    t2 = micros();
+
+    // Filtering
+    if (n % (DS0 * DS2 * 4) == 0) {
         filNormA.addVal(filNoiseA.getVal());
         filNormB.addVal(filNoiseB.getVal());
+
+        // Set interpolation start as the prev result
+        interA = filA;
+        interB = filB;
+        
+        filA = filNormA.getVal();
+        filB = filNormB.getVal();
+
+        distA = filA - interA;
+        distB = filB - interB;
     }
 
-    // Upsampling, value relative to FS or main loop rate
-    if (n % US3 == 0) {
-        // The rate at which modulation updated
-        ch1 = filNormA.getVal();
-        ch2 = filNormB.getVal();
+    t3 = micros();
+
+    // Linear interpolation
+    if (n % (DS0 * DS2 * 4 / US3) == 0) {
+        interA += distA / US3;
+        interB += distB / US3;
     }
 
-//    // Should be 10-bit ADC (1024) => 12-bit DAC (4096) for 5V => 5V
-//    // But turns out 5V (4096) is too high for audio jack input
-//    output = filNoiseA.getVal() * 2;
-//                                                
-//    Serial.print(input);
-//    Serial.print(" ");
-//    Serial.print(filNoiseA.getVal());
-//
-//    output *= cos(2 * PI * fc * n / FS) * 0.5;
-//    output += 2048;                             // Offset to prevent negative
-//    if (output <= 0) output = 0;
-//
-//    Serial.print(" ");
-//    Serial.println(output);
-//
+    t4 = micros();
+
+    // Modulation
+    chA = interA * cos(2 * PI * FCA * n / FS);
+    chB = interB * cos(2 * PI * FCB * n / FS);
+
+    t5 = micros();
+
+    output = chA + chB;
 //    dac.setVoltage(output, false);
-    
-    n++;
+
+    if (n <= MAXINDEX) {
+        n++;
+    } else {
+        n = 1;
+    }
+
+//    Serial.println((String)(-n/200.0f) + "\t" + (t1 - t0) + "\t" + (t2 - t1) + "\t" + (t3 - t2) + "\t" + (t4 - t3) + "\t" + (t5 - t4) + "\t" + (t5 - t0));
+    Serial.println((String)(-n/200.0f) + " " + inA + " " + inB + " " + inOff + " " + filA + " " + filB + " " + interA + " " + interB + " " + chA + " " + chB + " " + output);
 }
