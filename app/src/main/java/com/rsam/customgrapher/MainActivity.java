@@ -412,7 +412,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
                         recorder.read(sData, 0, BufferElements2Rec);
 
-                        // Full scheme written on Readme.
+                        // Full scheme written on Readme.md
                         filChA.addArray(sData, 21);     // HbO2
                         filChB.addArray(sData, 21);     // Hb
 
