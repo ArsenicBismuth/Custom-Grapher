@@ -5,17 +5,18 @@
 class Filter
 {
     private:
-        int _order = 32;
-        bool _iir = false;
+        int order = 32;
+        bool iir = false;
         
         // Pointers are used because we can't declare anything yet.
         // It's only here to be recognized as a class member.
-        float* _inputs;
-        float* _outputs;
-        float* _a;
-        float* _b;
+        float* inputs;
+        float* outputs;
+        float* a;
+        float* b;
 
         void init();
+        int modulo(int dividend, int divisor);
         
     public:
         Filter(int order, float *b, float *a);
