@@ -2,31 +2,33 @@
 #include <Adafruit_MCP4725.h>
 #include "Filter.h"
 
-#define FS 9000
-#define FSC 1500    // Data rate at the time for modulation
-
-// Carriers
-#define FCA 200
-#define FCB 500
-
 Adafruit_MCP4725 dac;
 
 // Filter Coefficients (from MATLAB
 // LPF
-float bNoise[33] = {-0.00403470692324842, 0.0182225145403899, 0.0131899782039394, 0.0149826746343488, 0.0183062083083345, 0.0221051451337311, 0.0261117305545169, 0.0301973612472578, 0.0342530062990987, 0.0381697736260240, 0.0418386379590894, 0.0451539032847044, 0.0480173236758640, 0.0503421327520257, 0.0520566797183028, 0.0531074708780736, 0.0534614599996321, 0.0531074708780736, 0.0520566797183028, 0.0503421327520257, 0.0480173236758640, 0.0451539032847044, 0.0418386379590894, 0.0381697736260240, 0.0342530062990987, 0.0301973612472578, 0.0261117305545169, 0.0221051451337311, 0.0183062083083345, 0.0149826746343488, 0.0131899782039394, 0.0182225145403899, -0.00403470692324842};
+float bNoise[11] = {0.0104163064372188, 0.0565664602816431, -0.0480254229384230, -0.0853677562092125, 0.294078704296918, 0.602164544048249, 0.294078704296918, -0.0853677562092125, -0.0480254229384230, 0.0565664602816431, 0.0104163064372188};
 // HPF
-float bNorm[24] = {0.00892989819282400, 0.0333839577844101, -0.00240756368983904, -0.0152616506593997, -0.0333156498206383, -0.0289015336720673, 0.00253344956193304, 0.0506090102439507, 0.0848875699648763, 0.0645789814297148, -0.0619687093364281, -0.579666988755414, 0.579666988755414, 0.0619687093364281, -0.0645789814297148, -0.0848875699648763, -0.0506090102439507, -0.00253344956193304, 0.0289015336720673, 0.0333156498206383, 0.0152616506593997, 0.00240756368983904, -0.0333839577844101, -0.00892989819282400};
+float bNorm[51] = {0.00412053114641298, -0.0312793191356909, -0.0115236109767417, -0.0100213992087269, -0.0108385904761499, -0.0119734717946732, -0.0131685337169099, -0.0143842189071186, -0.0156078845365078, -0.0168299462147875, -0.0180409785596737, -0.0192314427835679, -0.0203917450600907, -0.0215123386063274, -0.0225838323470475, -0.0235970999596655, -0.0245433871199924, -0.0254144153854427, -0.0262024812734020, -0.0269005491468212, -0.0275023365897874, -0.0280023910540817, -0.0283961566788859, -0.0286800303246559, -0.0288514060155109, 0.971091292850008, -0.0288514060155109, -0.0286800303246559, -0.0283961566788859, -0.0280023910540817, -0.0275023365897874, -0.0269005491468212, -0.0262024812734020, -0.0254144153854427, -0.0245433871199924, -0.0235970999596655, -0.0225838323470475, -0.0215123386063274, -0.0203917450600907, -0.0192314427835679, -0.0180409785596737, -0.0168299462147875, -0.0156078845365078, -0.0143842189071186, -0.0131685337169099, -0.0119734717946732, -0.0108385904761499, -0.0100213992087269, -0.0115236109767417, -0.0312793191356909, 0.00412053114641298};
 
-// Downsampling rate are specified relative to previous process
-// Upsampling rate are specified as absolute to FS or main loop rate
-#define DS0 2                       // Downsampling rate FS0 = FS / DS1
-Filter filNoiseA(32, bNoise);       // Remember b's passed by reference
-Filter filNoiseB(32, bNoise);
-Filter filNormA(32, bNorm);
-Filter filNormB(32, bNorm);
-#define DS2 15
-#define US3 20
-#define MAXINDEX (DS0 * 4L * DS2 * (FS/FCA) * (FS/FCB))     // Used to reset the iterator, avoiding overflow
+// Down/upsampling rate, specified relative to previous process
+#define DS0 1                       // Downsampling rate FS0 = FS / DS1
+#define DS1 4                       // Downsampling due to switching of 4 states
+Filter filNoiseA(11, bNoise);       // Remember b's passed by reference
+Filter filNoiseB(11, bNoise);
+Filter filNormA(51, bNorm);
+Filter filNormB(51, bNorm);
+#define DS2 2
+#define US3 4
+#define MAXINDEX (DS0 * DS1 * DS2)       // Used to reset the global iterator, avoiding overflow
+
+#define FS 200
+#define FSC (FS / DS0 / DS1 / DS2 * US3) // Data rate at the time for modulation
+
+// Carriers
+#define FCA 60
+#define FCB 100
+
+#define MAXINDEX2 ((FS/FCA) * (FS/FCB)) // Used to separate carrier index from global iterator to keep MAXINDEX low
 
 // Var
 int input;
@@ -35,6 +37,8 @@ int inB;
 int inOff;
 float chA = 0;
 float chB = 0;
+float dsA = 0;
+float dsB = 0;
 float filA = 0;
 float filB = 0;
 float interA = 0;
@@ -42,11 +46,12 @@ float interB = 0;
 float distA = 0;
 float distB = 0;
 int output = 0;
-long n = 1;     // Global index
-unsigned long t0, t1, t2, t3, t4, t5;
+int n = 1;     // Global index
+long m = 1;     // Index used for cosine
+unsigned long t0, t1, t2, t3, t4, t5, t6;
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(250000);
     pinMode(5, OUTPUT);
     dac.begin(0x62);
 }
@@ -59,19 +64,19 @@ void loop() {
 
     // Data mapping & downsampling, add data only every x indexes
     // TODO electrical settings on switching
-    if (n % DS0 == 0) {
-        if (n % 4 == 0) {
+    if (modulo(n, DS0) == 0) {
+        if (modulo(n, DS0 * DS1) == 0) {
             // HbO2
             inA = input;
-            filNoiseA.addVal(input);
-        } else if (n % 4 == 1) {
+            filNoiseA.addVal(inA);
+        } else if (modulo(n, DS0 * DS1) == 1) {
             // Off
             inOff = input;
-        } else if (n % 4 == 2) {
+        } else if (modulo(n, DS0 * DS1) == 2) {
             // Hb
             inB = input;
-            filNoiseB.addVal(input);
-        } else if (n % 4 == 3) {
+            filNoiseB.addVal(inB);
+        } else if (modulo(n, DS0 * DS1) == 3) {
             // Off
             inOff = input;
         }
@@ -80,9 +85,12 @@ void loop() {
     t2 = micros();
 
     // Filtering
-    if (n % (DS0 * DS2 * 4) == 0) {
-        filNormA.addVal(filNoiseA.getVal());
-        filNormB.addVal(filNoiseB.getVal());
+    if (modulo(n, (DS0 * DS1 * DS2)) == 0) {
+        dsA = filNoiseA.getVal();
+        dsB = filNoiseB.getVal();
+        
+        filNormA.addVal(dsA);
+        filNormB.addVal(dsB);
 
         // Set interpolation start as the prev result
         interA = filA;
@@ -98,7 +106,7 @@ void loop() {
     t3 = micros();
 
     // Linear interpolation
-    if (n % (DS0 * DS2 * 4 / US3) == 0) {
+    if (n % (DS0 * DS1 * DS2 / US3) == 0) {
         interA += distA / US3;
         interB += distB / US3;
     }
@@ -106,20 +114,65 @@ void loop() {
     t4 = micros();
 
     // Modulation
-    chA = interA * cos(2 * PI * FCA * n / FS);
-    chB = interB * cos(2 * PI * FCB * n / FS);
+    chA = interA * cos(2 * PI * FCA / FS * m);
+    chB = interB * cos(2 * PI * FCB / FS * m);
 
     t5 = micros();
 
     output = chA + chB;
-//    dac.setVoltage(output, false);
+    dac.setVoltage(output, false);
 
-    if (n <= MAXINDEX) {
+    if (n < MAXINDEX) {
         n++;
     } else {
         n = 1;
     }
 
-//    Serial.println((String)(-n/200.0f) + "\t" + (t1 - t0) + "\t" + (t2 - t1) + "\t" + (t3 - t2) + "\t" + (t4 - t3) + "\t" + (t5 - t4) + "\t" + (t5 - t0));
-    Serial.println((String)(-n/200.0f) + " " + inA + " " + inB + " " + inOff + " " + filA + " " + filB + " " + interA + " " + interB + " " + chA + " " + chB + " " + output);
+    if (m < MAXINDEX2) {
+        m++;
+    } else {
+        m = 1;
+    }
+
+    t6 = micros();
+
+//    Serial.print(-n/100.0f); Serial.print("\t");
+//    Serial.print(t1 - t0); Serial.print("\t");
+//    Serial.print(t2 - t1); Serial.print("\t");
+//    Serial.print(t3 - t2); Serial.print("\t");
+//    Serial.print(t4 - t3); Serial.print("\t");
+//    Serial.print(t5 - t4); Serial.print("\t");
+//    Serial.print(t6 - t5); Serial.print("\t");
+//    Serial.print(t6 - t0); Serial.print("\t");
+    
+    Serial.print(-n/1.0f); Serial.print(" ");
+    Serial.print(input); Serial.print(" ");
+    Serial.print(inA); Serial.print(" ");
+    Serial.print(inB); Serial.print(" ");
+    Serial.print(inOff); Serial.print(" ");
+    Serial.print(dsA); Serial.print(" ");
+    Serial.print(dsB); Serial.print(" ");
+    Serial.print(filA); Serial.print(" ");
+    Serial.print(filB); Serial.print(" ");
+    Serial.print(interA); Serial.print(" ");
+    Serial.print(interB); Serial.print(" ");
+    Serial.print(chA); Serial.print(" ");
+    Serial.print(chB); Serial.print(" ");
+    Serial.print(output);
+
+    Serial.println();
+}
+
+int modulo(int dividend, int divisor) {
+    if (dividend == 1) {
+        return divisor > 1;
+    } else if (divisor == 1) {
+        return 0;
+    } else if (divisor <= 4) {
+        return dividend % divisor;
+    } else {
+        int result = dividend;
+        for (result; result >= divisor; result -= divisor);
+        return result;
+    }
 }
