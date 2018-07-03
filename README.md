@@ -20,19 +20,19 @@ Downsample specs are written respective to previous condition.
 	 previous states would be short but still exist
 2. Test: Downsample by 4x => 50Hz (Simulating switching)
    - Since there're 4 input states, input downsampled 1x ==> 200Hz
-3. Noise filtering
+3. [Removed] Noise filtering (Too many memory)
    - FIR, 12 \ ?, -30dB, 11th order => 12 \ 18
-4. Test: Downsample by 2x => 25Hz
+4. Downsample by 1x => 50Hz
 4. Offset filtering
-   - FIR, ? / 0.6, -30dB, 51st order => 0.11 / 0.6		[TODO: Strange, must fix]
-5. Test: Amplify 2x for better SNR
+   - FIR, ? / 0.6, -30dB, 51st order => 0.11 / 0.6  @25Hz (Offset to 0.22 / 1.2 @50Hz)
+5. Test: Amplify 8x for better SNR
    - Signal Vpp must be less than 1/2 audio jack range for modulation purpose
 6. Upsample to 100Hz & interpolate => Test: 4x prev or 1/2x total
    - Interpolation receives at min 2 data, and values as small as
      the interpolation rate to be created
    - Test: No interpolation
 6. Modulate each using DSBAM
-   - HbO2, ch1 (60Hz)
+   - HbO2, ch1 (70Hz)
    - Hb,   ch2 (100Hz)
    - Test: Modulation index 100% (signal zero at 1/2 modulated signal peak)
 7. Decrease Xx so that each has amplitude < half the full range
@@ -40,14 +40,15 @@ Downsample specs are written respective to previous condition.
    
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
+[TODO: More filter before downsampling by a big ratio, avoid severe distortion due to aliasing]
 1. Downsample by 90x   => 490Hz
 2. Separate channels
-   - Separate HbO2, ch1  (60Hz): FIR, 70 \ 80 (Hz) => 100st order
-   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90 (Hz) => 105st order
+   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90 (Hz), -60dB => 100st order
+   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90 (Hz), -60dB => 105st order
 3. Demodulate each
    - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
-   - FIR, 30 \ 190 (Hz)   => 6th order2
-4. Downsample by 7x   => 70Hz
+   - FIR, 15 \ 40 (Hz)   => 44th order
+4. Downsample by 10x   => 49Hz
 5. Noise & offset filtering
    - IIR, 0.3 / 0.8 5 \ 12 => (X) Unable to be converted to TF in Matlab
    - Stage 1: IIR, 0.3 / 0.6, Chebyshev I => 8th order
@@ -65,3 +66,6 @@ Receive a single signal containing two channels through the audio jack.
      - FIR, 0.1 / 0.6 8 \ 12, -60dB => 283th order => (X)
      - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order
 	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
+   - Newer:
+     - FIR, 8 \ 15, -60dB => 15nd order
+     - Offset: Copy Arduino Filter

@@ -134,9 +134,8 @@ public class Filter {
 			temp -= outputs[i] * a[i];
 
 		// Result
-//		Log.d("Filt ", String.valueOf(outputs[0]));
 		outputs[0] = temp;
-		addBuffer(outputs[0]);
+		addBuffer(temp);
     }
 
     private void addBuffer(double value) {
