@@ -52,11 +52,11 @@ void Filter::addVal(int value) {
     outputs[st] = 0;
     
     for (int i = 0; i < order; i++) {
-        int j = modulo((order + st - i), order); // Decrement, x[n-i] * a[i]
+        int j = modulo((order + st - i), order); // Decrement, x[n-i] * b[i]
         
         outputs[st] += inputs[j] * b[i];
         
-        if ((iir) && (i != 1)) {
+        if ((iir) && (i != 0)) {
             outputs[st] -= outputs[j] * a[i];
         }
     }
@@ -71,8 +71,11 @@ float Filter::getVal() {
 // Alternate modulo function
 // Good enough if dividend is sure to be not far bigger than divisor
 int Filter::modulo(int dividend, int divisor) {
-    // Since divisor faster at that range
-    if (divisor <= 4) {
+    if (dividend == 1) {
+        return divisor > 1;
+    } else if (divisor == 1) {
+        return 0;
+    } else if (divisor <= 4) {
         return dividend % divisor;
     } else {
         int result = dividend;
