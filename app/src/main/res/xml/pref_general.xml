@@ -22,29 +22,6 @@
         android:key="list-orientation"
         android:title="@string/pref_title_orientation"/>
 
-    <PreferenceCategory android:title="@string/pref_title_advanced"/>
-
-    <EditTextPreference
-        android:defaultValue="10"
-        android:key="value-downsample"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:inputType="numberDecimal"
-        android:digits="0123456789"
-        android:title="@string/pref_title_downsample" />
-
-    <SwitchPreference
-        android:defaultValue="false"
-        android:key="switch-debug"
-        android:summary="@string/pref_description_debug"
-        android:title="@string/pref_title_debug" />
-
-    <SwitchPreference
-        android:defaultValue="false"
-        android:key="switch-reset"
-        android:summary="@string/pref_description_reset"
-        android:title="@string/pref_title_reset" />
-
     <!-- NOTE: EditTextPreference accepts EditText attributes. -->
     <!-- NOTE: EditTextPreference's summary should be set to its value by the activity code. -->
     <!--<EditTextPreference-->

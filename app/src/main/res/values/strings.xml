@@ -50,6 +50,7 @@
 
     <!-- General settings -->
     <string name="pref_header_general">General</string>
+    <string name="pref_header_advanced">Advanced</string>
 
     <string name="pref_title_bpm">Display beat per minute (BPM)</string>
     <string name="pref_description_bpm">Parameter calculating the amount of heartbeat
@@ -74,6 +75,8 @@
     </string-array>
 
     <string name="pref_title_advanced">Advanced</string>
+
+    <string name="pref_title_gap">Graph width</string>
 
     <string name="pref_title_downsample">Sample skip (Downsample)</string>
     <!--<string name="pref_description_downsample">Update the visualizer only after specified amount-->

@@ -47,24 +47,37 @@ Receive a single signal containing two channels through the audio jack.
 3. Downsample by 2x => 245Hz
 4. Demodulate each
    - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
-   - FIR, 5 \ 25, -60dB => 63rd order @490Hz (Shifted to 2.5 \ 12.5 @245Hz)
+   - FIR, 5 \ 10, -60dB => 110th order
 5. Downsample by 5x => 49Hz
 6. Noise & offset filtering
+   - Alternatives:
+     - FIR, 0.2 / 0.4 8 \ 12, -60dB => 698th order => (X)
+     - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order
+	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
+   - Newer:
+     - Offset: Copy Arduino Filter
+	 
+**Extras**
+Some very important information used during testings, some are just a cut out from above sections
+thus might contain stuffs mentioned without context.
+- A lot of them available either through commit descriptions or some notes scattered around the repo.
+- Infinite Impulse Response Filter (IIR):
    - IIR, 0.3 / 0.8 5 \ 12 => (X) Unable to be converted to TF in Matlab
-   - Stage 1: IIR, 0.3 / 0.6, Chebyshev I => 8th order
-   - Stage 2: IIR,   5 \ 12  => 8th order
    - All IIR filter initially not normalized at 0dB: (switch b,a to sosMatrix for sos)
         [h,w] = freqz(b,a);    % frequency response of the filter H = b/a
         scale = 1/max(abs(h)); % scaling factor
         b = b*scale;           % scale*H, yes ONLY the b. Scaling a too will make it revert back.
    - Tried to cascade the tf, turns out the HPF side ruins everything. Using below methods;
         cFinal_Hbp_casc = filt(cFinal1_Hhp_b,cFinal1_Hhp_a) * filt(cFinal2_Hlp_b,cFinal2_Hlp_a);
-        fvtool(cFinal_Hbp_casc.Numerator{1,1}, cFinal_Hbp_casc.Denominator{1,1},'Fs',210,'FrequencyScale','log','FrequencyRange','Specify freq. vector','FrequencyVector',[1e-3:0.1:1e3]);
-   - Alternatives:
-     - FIR, 0.2 / 0.4 8 \ 12, -60dB => 698th order => (X)
-     - FIR, 0.3 / 0.5 8 \ 12, -60dB => 713th order => (X)
-     - FIR, 0.1 / 0.6 8 \ 12, -60dB => 283th order => (X)
-     - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order
-	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
-   - Newer:
-     - Offset: Copy Arduino Filter
+        fvtool(cFinal_Hbp_casc.Numerator{1,1}, cFinal_Hbp_casc.Denominator{1,1},'Fs',210,'FrequencyScale',...
+		'log','FrequencyRange','Specify freq. vector','FrequencyVector',[1e-3:0.1:1e3]);
+- Adding new settings for the app:
+   1. Add a new menu to a settings section in pref_generals.xml (for example) as in usual procedure
+   2. Change the defaultValue
+   3. For input-able settings (edit text, list, dialog, etc), bind the values inside SettingsActivity.java
+   4. Pass the setting values to their respective variables to apply changes using sharedPref
+- Adding new setting section for the app:
+   1. Copy existing pref xml such as pref_general.xml and modify
+   2. Add a new header inside pref_headers.xml
+   3. Inside SettingsActivity.java, add similar code as its neighbor inside "isValidFragment" method
+   4. Add another PreferenceFragment static class, again similar to its neighbor
