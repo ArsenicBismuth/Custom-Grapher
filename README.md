@@ -40,16 +40,16 @@ Downsample specs are written respective to previous condition.
    
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
-[TODO: More filter before downsampling by a big ratio, avoid severe distortion due to aliasing]
-1. Downsample by 90x   => 490Hz
+1. Downsample by 90x => 490Hz
 2. Separate channels
-   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90 (Hz), -60dB => 100st order
-   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90 (Hz), -60dB => 105st order
-3. Demodulate each
+   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90, -60dB => 100st order
+   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90, -60dB => 105st order
+3. Downsample by 2x => 245Hz
+4. Demodulate each
    - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
-   - FIR, 15 \ 40 (Hz)   => 44th order
-4. Downsample by 10x   => 49Hz
-5. Noise & offset filtering
+   - FIR, 5 \ 25, -60dB => 63rd order @490Hz (Shifted to 2.5 \ 12.5 @245Hz)
+5. Downsample by 5x => 49Hz
+6. Noise & offset filtering
    - IIR, 0.3 / 0.8 5 \ 12 => (X) Unable to be converted to TF in Matlab
    - Stage 1: IIR, 0.3 / 0.6, Chebyshev I => 8th order
    - Stage 2: IIR,   5 \ 12  => 8th order
@@ -67,5 +67,4 @@ Receive a single signal containing two channels through the audio jack.
      - FIR, 0.1 / 0.6 8 \ 12, -30dB => 165th order
 	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
    - Newer:
-     - FIR, 8 \ 15, -60dB => 15nd order
      - Offset: Copy Arduino Filter
