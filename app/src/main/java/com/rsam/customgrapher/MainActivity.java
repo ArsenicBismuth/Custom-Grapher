@@ -1,5 +1,6 @@
 package com.rsam.customgrapher;
 
+import java.util.Calendar;
 import java.util.LinkedList;
 
 import android.Manifest;
@@ -125,6 +126,12 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     TextView tBPM;
     TextView tSPO2;
+
+    private static final int BPMTH = 0;  // Cross-over threshold for BPM calculation
+    private int cross = 0;      // Zero-crossing counter
+    private long millis = 0;    // Time tracker
+    private double pvalue = 0;
+    private int bpm = 0;
 
     private String empty = "-";
 
@@ -470,6 +477,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                        filLast2A.addArray(filLast1A.getBuffer(), DS4);
 //                        filLast2B.addArray(filLast1B.getBuffer(), DS4);
 
+                        // Very simple waveform for BPM calculation
+//                        filBPM.addArray(filLast1A.getBuffer(), DS4);
+                        calculateBPM(filLast1A.getBuffer());
+
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
                             @Override
@@ -484,7 +495,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
 
-                                setBPM(simpleWaveformA.getBPM());
+                                setBPM(bpm);
 
                                 setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
                                                         String.valueOf(simpleWaveformB.absMaxIndex), 1);
@@ -551,9 +562,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             simpleWaveform.dataList.removeLast();
         }
 
-        // Do bpm calculation
-        if (setBPM) simpleWaveform.updateBPM(value);
-
         dataNum++;  // Increment data count
         simpleWaveform.refresh();
 //        simpleWaveform.postInvalidate();  // Allow update view outside an UI Thread
@@ -578,7 +586,33 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         return true;
     }
 
-    public void setBPM(int value) {
+    private void calculateBPM(double[] arr) {
+        for (double value : arr) {
+            // Check if rising
+            if ((pvalue < BPMTH) && (value > BPMTH)) {
+                // if the first in a batch
+                if (cross == 0) {
+                    millis = Calendar.getInstance().getTimeInMillis();
+                    Log.d("graph","millis " + millis);
+                }
+
+                cross++;
+            }
+
+            if (cross >= 4) {
+                bpm = 60000 / (int) (Calendar.getInstance().getTimeInMillis() - millis) * (cross - 1);
+                cross = 0;
+            }
+
+            if ((bpm < 0) || (bpm > 200)) {
+                bpm = -1;
+            }
+
+            pvalue = value;
+        }
+    }
+
+    private void setBPM(int value) {
         if (value == -1) {
             // Invalid calculation
             tBPM.setText(empty);
