@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final int REC_AUDIO_ENC = AudioFormat.ENCODING_PCM_16BIT;
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
+    private int bufferSize = 0;
     private static final int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     private static final int BytesPerElement = 2;       // 2 bytes in 16bit format
     private static long dataNum = 0;                    // Keep the data count, beware it'll overflow so use the difference if necessary
@@ -75,21 +76,23 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private double[] b_demod = {0.000709324466897976, 0.000501669874160712, 0.000658536292432699, 0.000829375141137510, 0.00100794134364602, 0.00118788410353271, 0.00136029228469972, 0.00151460412604542, 0.00163824229100702, 0.00172102343200113, 0.00174769819029475, 0.00170693374446609, 0.00158679697795158, 0.00137575666772897, 0.00106572707360458, 0.000650058158928646, 0.000126283718084154, -0.000505139305231689, -0.00123800983798127, -0.00206267904992722, -0.00296376417711485, -0.00392076492075778, -0.00490864521258331, -0.00589707130637015, -0.00685171264575463, -0.00773443209800301, -0.00850465155550170, -0.00911984053684482, -0.00953724649284772, -0.00971509510964227, -0.00961347328629776, -0.00919657638433070, -0.00843329723895648, -0.00729913550488027, -0.00577710869030980, -0.00385909719342456, -0.00154643543212025, 0.00114938369684251, 0.00420627731604996, 0.00759195278330197, 0.0112638133840352, 0.0151698753320657, 0.0192496421724341, 0.0234353211744732, 0.0276534249755862, 0.0318264222437445, 0.0358748376709030, 0.0397190317912105, 0.0432815659219615, 0.0464890927072071, 0.0492744164960204, 0.0515784200463150, 0.0533516104085821, 0.0545556488851210, 0.0551643006400800, 0.0551643006400800, 0.0545556488851210, 0.0533516104085821, 0.0515784200463150, 0.0492744164960204, 0.0464890927072071, 0.0432815659219615, 0.0397190317912105, 0.0358748376709030, 0.0318264222437445, 0.0276534249755862, 0.0234353211744732, 0.0192496421724341, 0.0151698753320657, 0.0112638133840352, 0.00759195278330197, 0.00420627731604996, 0.00114938369684251, -0.00154643543212025, -0.00385909719342456, -0.00577710869030980, -0.00729913550488027, -0.00843329723895648, -0.00919657638433070, -0.00961347328629776, -0.00971509510964227, -0.00953724649284772, -0.00911984053684482, -0.00850465155550170, -0.00773443209800301, -0.00685171264575463, -0.00589707130637015, -0.00490864521258331, -0.00392076492075778, -0.00296376417711485, -0.00206267904992722, -0.00123800983798127, -0.000505139305231689, 0.000126283718084154, 0.000650058158928646, 0.00106572707360458, 0.00137575666772897, 0.00158679697795158, 0.00170693374446609, 0.00174769819029475, 0.00172102343200113, 0.00163824229100702, 0.00151460412604542, 0.00136029228469972, 0.00118788410353271, 0.00100794134364602, 0.000829375141137510, 0.000658536292432699, 0.000501669874160712, 0.000709324466897976};
     // HPF, 51
     private double[] b_last1 = {0.00412053114641298, -0.0312793191356909, -0.0115236109767417, -0.0100213992087269, -0.0108385904761499, -0.0119734717946732, -0.0131685337169099, -0.0143842189071186, -0.0156078845365078, -0.0168299462147875, -0.0180409785596737, -0.0192314427835679, -0.0203917450600907, -0.0215123386063274, -0.0225838323470475, -0.0235970999596655, -0.0245433871199924, -0.0254144153854427, -0.0262024812734020, -0.0269005491468212, -0.0275023365897874, -0.0280023910540817, -0.0283961566788859, -0.0286800303246559, -0.0288514060155109, 0.971091292850008, -0.0288514060155109, -0.0286800303246559, -0.0283961566788859, -0.0280023910540817, -0.0275023365897874, -0.0269005491468212, -0.0262024812734020, -0.0254144153854427, -0.0245433871199924, -0.0235970999596655, -0.0225838323470475, -0.0215123386063274, -0.0203917450600907, -0.0192314427835679, -0.0180409785596737, -0.0168299462147875, -0.0156078845365078, -0.0143842189071186, -0.0131685337169099, -0.0119734717946732, -0.0108385904761499, -0.0100213992087269, -0.0115236109767417, -0.0312793191356909, 0.00412053114641298};
-    // BPF, -
-//    private double[] b_last2 = {1};
+    // LPF, 11
+//    private double[] b_bpm = {0.00968019297323327, -0.0466578697088982, -0.0689306524089743, 0.0580759672488941, 0.302780871640028, 0.432601852726898, 0.302780871640028, 0.0580759672488941, -0.0689306524089743, -0.0466578697088982, 0.00968019297323327};
 
     // Downsampling rates with the data before/after
+    private int fsdev = 1;  // Multiplier to compensate the difference in sampling rate
     // Raw
     private final int DS0 = 10; // 4410 Hz (1/10 from before)
     // Anti-aliasing result
     private final int DS1 = 9;  // 490 Hz (1/9 from before, 1/90 total)
     // Channel separator result
-    private final int DS2 = 2;  // 490 Hz (1/1 from before, 1/90 total)
+    private final int DS2 = 2;  // 245 Hz (1/2 from before, 1/180 total)
     // Edge detector result
-    private final int DS3 = 5; // 70 Hz (1/7 from before, 1/630 total)
+    private final int DS3 = 5;  // 49 Hz (1/5 from before, 1/900 total)
     // Offset suppressor result
-    private final int DS4 = 1;  // 70 Hz (1/1 from before, 1/630 total)
     // Final data
+//    private final int DS4 = 7;  // 7 Hz (1/7 from before, 1/6300 total)
+    // Simplified for BPM calculation
 
     // The filters, one separate system for each channel
     // Buffer MUST be proportional to sampling rate, with full size BufferElements2Rec is used for REC_RATE
@@ -102,6 +105,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private Filter filLast1B = new Filter(b_last1.length, b_last1, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3), false);
 //    private Filter filLast2A = new Filter(b_last2.length, b_last2, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
 //    private Filter filLast2B = new Filter(b_last2.length, b_last2, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
+//    private Filter filBPM = new Filter(b_bpm.length, b_bpm, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
 
     // Debugging for LOGCAT
     private static final String TAG = "MainActivity";
@@ -119,10 +123,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     public static boolean doRun = true;     // Run/Pause functionality
     public static boolean fabState = true;  // Preserving floating button state on pause
 
-//    public static TimeDiff timeScreen;
-
     TextView tBPM;
     TextView tSPO2;
+
+    private String empty = "-";
 
     // Layout editor compatibility with simpleWaveform
         // Or at least change the bg canvas to darker white like the original
@@ -211,7 +215,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //            }
 //        });
 
-        int bufferSize = AudioRecord.getMinBufferSize(REC_RATE,
+        bufferSize = AudioRecord.getMinBufferSize(REC_RATE,
                 REC_CH, REC_AUDIO_ENC);
 
         Log.d(TAG, "minBufferSize " + String.valueOf(bufferSize));
@@ -422,9 +426,15 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         final short sData[] = new short[BufferElements2Rec];
 
         try {
+            // Default configuration which guaranteed to work by the docs (though actually not for low-ends)
             recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
                     REC_RATE, REC_CH,
                     REC_AUDIO_ENC, BufferElements2Rec * BytesPerElement);
+
+            // Not compatible, decided to seek different configs
+            if (recorder.getState() == AudioRecord.STATE_UNINITIALIZED) {
+                recorder = findAudioRecord();
+            }
 
             recorder.startRecording();
             recordingThread = new Thread(new Runnable() {
@@ -446,8 +456,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                        filChA.addArray(filaa.getBuffer(), DS1);     // HbO2
 //                        filChB.addArray(filaa.getBuffer(), DS1);     // Hb
 
-                        filChA.addArray(sData, DS0 * DS1);     // HbO2
-                        filChB.addArray(sData, DS0 * DS1);     // Hb
+                        filChA.addArray(sData, DS0 * DS1 / fsdev);     // HbO2
+                        filChB.addArray(sData, DS0 * DS1 / fsdev);     // Hb
 
                         // Rectify then clear carrier
                         filDemodA.addArray(filChA.getBuffer(), DS2);
@@ -473,7 +483,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
 //                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
-                                
+
+                                setBPM(simpleWaveformA.getBPM());
+
                                 setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
                                                         String.valueOf(simpleWaveformB.absMaxIndex), 1);
                                 setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
@@ -539,6 +551,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             simpleWaveform.dataList.removeLast();
         }
 
+        // Do bpm calculation
+        if (setBPM) simpleWaveform.updateBPM(value);
+
         dataNum++;  // Increment data count
         simpleWaveform.refresh();
 //        simpleWaveform.postInvalidate();  // Allow update view outside an UI Thread
@@ -563,14 +578,19 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         return true;
     }
 
-    private int calculateBPM(int values) {
-        return 0;
+    public void setBPM(int value) {
+        if (value == -1) {
+            // Invalid calculation
+            tBPM.setText(empty);
+        } else {
+            tBPM.setText(String.format("%d", value));
+        }
     }
 
 //    public void setPower(int valAvg, int valPeak) {
 //        // Power texts controller
 //        TextView text;
-//        String empty = "-";
+//
 //
 //        // Store to local class variable
 //        this.valAvg = valAvg;
@@ -756,4 +776,33 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         ClipData clip = ClipData.newPlainText("values", text);
         clipboard.setPrimaryClip(clip);
     }
+
+    private static int[] mSampleRates = new int[] {44100, 22050, 11025, 8000};
+    public AudioRecord findAudioRecord() {
+        for (int rate : mSampleRates) {
+            for (short audioFormat : new short[] { AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_8BIT }) {
+                for (short channelConfig : new short[] { AudioFormat.CHANNEL_IN_MONO /*, AudioFormat.CHANNEL_IN_STEREO*/ }) {
+                    try {
+                        Log.d("REC", "Attempting rate " + rate + "Hz, bits: " + audioFormat + ", channel: "
+                                + channelConfig);
+                        int bufferSize = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat);
+
+                        if (bufferSize != AudioRecord.ERROR_BAD_VALUE) {
+                            // check if we can instantiate and have a success
+                            AudioRecord recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, rate, channelConfig, audioFormat, bufferSize);
+
+                            if (recorder.getState() == AudioRecord.STATE_INITIALIZED) {
+                                fsdev = REC_RATE / rate;    // Deviate the initial sample rate
+                                return recorder;
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e("REC", rate + "Exception, keep trying.",e);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
 }

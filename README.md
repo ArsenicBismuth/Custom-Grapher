@@ -42,11 +42,11 @@ Downsample specs are written respective to previous condition.
 Receive a single signal containing two channels through the audio jack.
 1. Downsample by 90x => 490Hz
 2. Separate channels
-   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90, -60dB => 100st order
-   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90, -60dB => 105st order
+   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90, -60dB => 100th order
+   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90, -60dB => 105th order
 3. Downsample by 2x => 245Hz
 4. Demodulate each
-   - Rectify (reqires the sampling rate to be more than 2x[2x] of all the carriers)
+   - Rectify (actually reqires the sampling rate to be more than 2x[2x] of all the carriers)
    - FIR, 5 \ 10, -60dB => 110th order
 5. Downsample by 5x => 49Hz
 6. Noise & offset filtering
@@ -56,6 +56,10 @@ Receive a single signal containing two channels through the audio jack.
 	 - FIR, 0.1 / 0.6 8 \ 12, -10dB => 85th order  => (X) Very big offset
    - Newer:
      - Offset: Copy Arduino Filter
+7. Downsample by 7x => 7Hz
+8. [Cancelled] BPM Calculation
+   - FIR, ? \ 2, -30dB, 30th orrder => 1 \ 2
+   - Check for rising zero-crossing, averaged at min every 4 waves
 	 
 **Extras**
 Some very important information used during testings, some are just a cut out from above sections

@@ -58,7 +58,7 @@ float interB = 0;
 float distA = 0;
 float distB = 0;
 int output = 0;
-int n = 1;     // Global index
+int n = 1;      // Global index
 long m = 1;     // Index used for cosine
 unsigned long t0, t1, t2, t3, t4, t5, t6;
 
@@ -130,8 +130,8 @@ void loop() {
 
     // Modulation
     // Currently unmodulated at [-100, 100], converted to [0, 800]
-    chA = (100 + interA) * cos(2 * PI * FCA / FS * m) * 8;
-    chB = (100 + interB) * cos(2 * PI * FCB / FS * m) * 8;
+    chA = (100 + interA) * cos(2 * PI * FCA / FS * m) * 8 * 2;
+    chB = (100 + interB) * cos(2 * PI * FCB / FS * m) * 8 * 2;
 
     t5 = micros();
 

@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
+import java.util.Calendar;
 import java.util.LinkedList;
 
 /*
@@ -242,9 +243,42 @@ public class SimpleWaveform extends View {
         refresh();
     }
 
+    private int cross = 0;
+    private long millis = 0;         // Time tracker
+    private int pvalue = 0;
+    private int bpm = 0;
+
+    public void updateBPM(int value) {
+        // Check if rising
+        if ((pvalue < 0) && (value > 0)) {
+            // if the first in a batch
+            if (cross == 0) {
+                millis = Calendar.getInstance().getTimeInMillis();
+                Log.d("graph","millis " + millis);
+            }
+
+            cross++;
+        }
+
+        if (cross >= 4) {
+            bpm = 60000 / (int) (Calendar.getInstance().getTimeInMillis() - millis) * (cross - 1);
+            cross = 0;
+        }
+
+        pvalue = value;
+    }
+
+    public int getBPM() {
+        if ((bpm > 0) && (bpm < 200)) {
+            return bpm;
+        } else {
+            return -1;  // Invalid result
+        }
+    }
+
     BarPoints barPoints;
-    int raw;
-    int range = 1;
+    private int raw;
+    private int range = 1;
 
     private void drawWaveList(Canvas canvas) {
 
