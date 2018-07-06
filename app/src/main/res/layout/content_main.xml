@@ -66,11 +66,12 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="300dp"
+                android:layout_height="18sp"
                 android:gravity="center"
                 android:paddingBottom="0sp"
                 android:text="@string/bpm"
+                android:textAlignment="viewStart"
                 android:textAppearance="@style/TextAppearance.AppCompat.Small"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
@@ -79,13 +80,14 @@
 
             <TextView
                 android:id="@+id/textBPM"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="300dp"
+                android:layout_height="48sp"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingBottom="10sp"
                 android:selectAllOnFocus="false"
                 android:text="123"
+                android:textAlignment="viewStart"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
                 android:textColor="@color/colorAccent"
                 android:textIsSelectable="true"
@@ -100,7 +102,7 @@
         <LinearLayout
             android:id="@+id/layoutSPO2"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_margin="0dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -109,11 +111,12 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="300dp"
+                android:layout_height="18sp"
                 android:gravity="center"
                 android:paddingBottom="0sp"
                 android:text="@string/spo2"
+                android:textAlignment="viewStart"
                 android:textAppearance="@style/TextAppearance.AppCompat.Small"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
@@ -122,13 +125,14 @@
 
             <TextView
                 android:id="@+id/textSPO2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="300dp"
+                android:layout_height="48sp"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingBottom="10sp"
                 android:selectAllOnFocus="false"
                 android:text="500"
+                android:textAlignment="viewStart"
                 android:textAppearance="@style/TextAppearance.AppCompat.Large"
                 android:textColor="@color/colorAccent"
                 android:textIsSelectable="true"
@@ -236,8 +240,8 @@
 
         <TextView
             android:id="@+id/textDebug1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="300dp"
+            android:layout_height="36sp"
             android:paddingBottom="0sp"
             android:text="@string/debug_content_1"
             android:textAlignment="viewStart"
@@ -249,8 +253,8 @@
 
         <TextView
             android:id="@+id/textDebug2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="300dp"
+            android:layout_height="36sp"
             android:paddingBottom="0sp"
             android:text="@string/debug_content_2"
             android:textAlignment="viewStart"
@@ -262,8 +266,8 @@
 
         <TextView
             android:id="@+id/textDebug3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="300dp"
+            android:layout_height="36sp"
             android:paddingBottom="0sp"
             android:text="@string/debug_content_3"
             android:textAlignment="viewStart"
