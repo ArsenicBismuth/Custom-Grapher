@@ -1,5 +1,6 @@
 package com.rsam.customgrapher;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.LinkedList;
 
@@ -40,7 +41,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final int REQUEST_CODE = 0;
     static final String[] PERMISSIONS = new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.MODIFY_AUDIO_SETTINGS};
 
-    private static final int MAX_AMPLITUDE = 65536;
     SimpleWaveform simpleWaveformA;
     SimpleWaveform simpleWaveformB;
 
@@ -95,15 +95,18 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //    private final int DS4 = 7;  // 7 Hz (1/7 from before, 1/6300 total)
     // Simplified for BPM calculation
 
+    private final int MAXINDEX = (DS0 * DS1 * DS2 * DS3);       // Used to reset the global iterator, avoiding overflow
+    int n = 1;      // Global index
+
     // The filters, one separate system for each channel
     // Buffer MUST be proportional to sampling rate, with full size BufferElements2Rec is used for REC_RATE
 //    private Filter filaa = new Filter(b_aa.length, b_aa, BufferElements2Rec / (DS0), false);
-    private Filter filChA = new Filter(b_chA.length, b_chA, BufferElements2Rec / (DS0 * DS1), false);
-    private Filter filChB = new Filter(b_chB.length, b_chB, BufferElements2Rec / (DS0 * DS1), false);
-    private Filter filDemodA = new Filter(b_demod.length, b_demod, BufferElements2Rec / (DS0 * DS1 * DS2), true);
-    private Filter filDemodB = new Filter(b_demod.length, b_demod, BufferElements2Rec / (DS0 * DS1 * DS2), true);
-    private Filter filLast1A = new Filter(b_last1.length, b_last1, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3), false);
-    private Filter filLast1B = new Filter(b_last1.length, b_last1, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3), false);
+    private Filter filChA = new Filter(b_chA.length, b_chA, BufferElements2Rec, false);
+    private Filter filChB = new Filter(b_chB.length, b_chB, BufferElements2Rec, false);
+    private Filter filDemodA = new Filter(b_demod.length, b_demod, BufferElements2Rec, true);
+    private Filter filDemodB = new Filter(b_demod.length, b_demod, BufferElements2Rec, true);
+    private Filter filLast1A = new Filter(b_last1.length, b_last1, BufferElements2Rec, false);
+    private Filter filLast1B = new Filter(b_last1.length, b_last1, BufferElements2Rec, false);
 //    private Filter filLast2A = new Filter(b_last2.length, b_last2, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
 //    private Filter filLast2B = new Filter(b_last2.length, b_last2, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
 //    private Filter filBPM = new Filter(b_bpm.length, b_bpm, BufferElements2Rec / (DS0 * DS1 * DS2 * DS3 * DS4), false);
@@ -303,17 +306,17 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             if (doRun) {
                 doRun = false;
                 stopRecording();
-                toClipboard(filChA.getBuffer(), false);
-                toClipboard(filDemodA.getBuffer(), true);
-                toClipboard(filLast1A.getBuffer(), true);
-                toClipboard(filLast1B.getBuffer(), true);
+//                toClipboard(filChA.getBuffer(), false);
+//                toClipboard(filDemodA.getBuffer(), true);
+//                toClipboard(filLast1A.getBuffer(), true);
+//                toClipboard(filLast1B.getBuffer(), true);
                 doRun = true;
                 startRecording();
             } else {
-                toClipboard(filChA.getBuffer(), false);
-                toClipboard(filDemodA.getBuffer(), true);
-                toClipboard(filLast1A.getBuffer(), true);
-                toClipboard(filLast1B.getBuffer(), true);
+//                toClipboard(filChA.getBuffer(), false);
+//                toClipboard(filDemodA.getBuffer(), true);
+//                toClipboard(filLast1A.getBuffer(), true);
+//                toClipboard(filLast1B.getBuffer(), true);
             }
 
             Toast.makeText(MainActivity.this, getString(R.string.toast_copy),
@@ -467,19 +470,38 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         filChB.addArray(sData, DS0 * DS1 / fsdev);     // Hb
 
                         // Rectify then clear carrier
-                        filDemodA.addArray(filChA.getBuffer(), DS2);
-                        filDemodB.addArray(filChB.getBuffer(), DS2);
+                        if (n % (DS0 * DS1 * DS2 / fsdev) == 0) {
+                            filDemodA.addVal(filChA.getBuffer());
+                            filDemodB.addVal(filChB.getBuffer());
+                        } else {
+                            // Just remove
+                            filChA.getBuffer();
+                            filChB.getBuffer();
+                        }
 
                         // Precise filters, cleaning and/or removing offset
-                        filLast1A.addArray(filDemodA.getBuffer(), DS3);
-                        filLast1B.addArray(filDemodB.getBuffer(), DS3);
+                        if (n % (DS0 * DS1 * DS2 * DS3 / fsdev) == 0) {
+                            filLast1A.addVal(filDemodA.getBuffer());
+                            filLast1B.addVal(filDemodB.getBuffer());
+                        } else {
+                            // Just remove
+                            filDemodA.getBuffer();
+                            filDemodB.getBuffer();
+                        }
 
 //                        filLast2A.addArray(filLast1A.getBuffer(), DS4);
 //                        filLast2B.addArray(filLast1B.getBuffer(), DS4);
 
                         // Very simple waveform for BPM calculation
 //                        filBPM.addArray(filLast1A.getBuffer(), DS4);
-                        calculateBPM(filLast1A.getBuffer());
+//                        calculateBPM(filLast1A.getBuffer());
+
+                        // Iterate global index, and reset continuously
+                        if (n < MAXINDEX) {
+                            n++;
+                        } else {
+                            n = 1;
+                        }
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
@@ -489,11 +511,18 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast2A.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast2B.getBuffer(), simpleWaveformB, downSample);
 
-                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
+                                double dataA = filChA.getBuffer();
+                                double dataB = filLast1A.getBuffer();
+                                if (dataA != -999) {
+                                    addWaveData(dataA, simpleWaveformA);
+                                }
 
-//                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
+                                if (dataB != -999) {
+                                    addWaveData(dataB, simpleWaveformB);
+                                }
+
+//                                    addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
+//                                    addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
 
                                 setBPM(bpm);
 
@@ -524,37 +553,34 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         }
     }
 
+    public void addWaveArray(LinkedList<Double> arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.size();
+        Log.d("", "dataLength: " + String.valueOf(arrSize));
+
+        int i = 0;
+        for (Double val : arr) {
+            if (i % downSample == 0) addWaveData(val, simpleWaveform);    // Add every x data
+            i++;
+        }
+    }
+
     public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
         Log.d("", "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
-//            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
         }
     }
 
-    public void addWaveArray(int[] arr, SimpleWaveform simpleWaveform, int downSample) {
-        int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
-
-        for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
-        }
-    }
-
-    public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
-        int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
-
-        for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
-        }
+    public void addWaveData(Double value, SimpleWaveform simpleWaveform) {
+        addWaveData(value.intValue(), simpleWaveform);
     }
 
     public void addWaveData(int value, SimpleWaveform simpleWaveform) {
         // Should be called inside an UI Thread since contains View.invalidate()
-        value = value * (simpleWaveform.height - 1) / MAX_AMPLITUDE;    // Normalize audio max-min to waveform height
+
+        // Calculate the point location, normalization done inside the SimpleWaveform
         simpleWaveform.dataList.addFirst(value);
 
         while (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
@@ -586,10 +612,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         return true;
     }
 
-    private void calculateBPM(double[] arr) {
-        for (double value : arr) {
+    private <T> void calculateBPM(LinkedList<Double> arr) {
+        for (double val : arr) {
             // Check if rising
-            if ((pvalue < BPMTH) && (value > BPMTH)) {
+            if ((pvalue < BPMTH) && (val > BPMTH)) {
                 // if the first in a batch
                 if (cross == 0) {
                     millis = Calendar.getInstance().getTimeInMillis();
@@ -608,7 +634,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                 bpm = -1;
             }
 
-            pvalue = value;
+            pvalue = val;
         }
     }
 
@@ -760,28 +786,28 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     private static final String END = "]";
 
 
-    private void toClipboard(double[] values) {
+    private <T> void toClipboard(T[] values) {
         toClipboard(values, false);
     }
 
-    private void toClipboard(double[] values, boolean append) {
+    private <T> void toClipboard(T[] values, boolean append) {
         // Convert to linked list
-        LinkedList<Integer> ll = new LinkedList<Integer>();
+        LinkedList<T> ll = new LinkedList<>();
 
         int size = values.length;
 
         for (int i = 0; i < size; i++) {
-            ll.add((int) values[i]);
+            ll.add(values[i]);
         }
 
         toClipboard(ll, append);
     }
 
-    private void toClipboard(LinkedList<Integer> values) {
+    private <T> void toClipboard(LinkedList<T> values) {
         toClipboard(values, false);
     }
 
-    private void toClipboard(LinkedList<Integer> values, boolean append) {
+    private <T> void toClipboard(LinkedList<T> values, boolean append) {
         StringBuilder textBuilder = new StringBuilder();
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 
@@ -797,7 +823,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         textBuilder.append(START);
 
-        for(int val : values) {
+        for(T val : values) {
             textBuilder.append(String.valueOf(val));
             textBuilder.append(SEPARATOR);
         }
