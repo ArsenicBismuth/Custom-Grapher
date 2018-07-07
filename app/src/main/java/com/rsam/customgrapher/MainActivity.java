@@ -201,9 +201,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Waveforms initialization
         simpleWaveformA = findViewById(R.id.simpleWaveformA);
         simpleWaveformA.setVisibility(View.VISIBLE);
+        simpleWaveformA.id = 1;
 
         simpleWaveformB = findViewById(R.id.simpleWaveformB);
         simpleWaveformB.setVisibility(View.VISIBLE);
+        simpleWaveformA.id = 2;
 
         amplitudeWave(simpleWaveformA, ampListA);
         amplitudeWave(simpleWaveformB, ampListB);
@@ -326,7 +328,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     }
 
     private void applySettings() {
-        Log.d("", "applySettings");
+        Log.d(TAG, "applySettings");
 
         // Get Shared Preferences under the default name "com.example.something_preferences"
         SharedPreferences sharedPref =
@@ -346,7 +348,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         if (setReset) {
             // Force the settings to revert to xml default values
-            Log.d("", "Reset");
+            Log.d(TAG, "Reset");
 //            sharedPref.edit().clear().apply();  // Apply() returns no value, faster because asynchronous
             sharedPref.edit().clear().commit();  // But Apply() might make the settings not fully reset
 
@@ -409,11 +411,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 ////        LinearLayout separator = findViewById(R.id.separator);
 //        if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) { // Default condition, which is the one currently used on the main layout
 ////            layoutWave.setOrientation(LinearLayout.VERTICAL);
-////            Log.d("", "portrait");
+////            Log.d(TAG, "portrait");
 //            // Since the height is based on weight, height must be zero, width MATCH_PARENT
 //        } else if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE){
 ////            layoutWave.setOrientation(LinearLayout.HORIZONTAL);
-////            Log.d("", "landscape");
+////            Log.d(TAG, "landscape");
 //            // Since the the one based on weight, width must be zero, height MATCH_PARENT
 //        }
 //    }
@@ -479,7 +481,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
                         // Very simple waveform for BPM calculation
 //                        filBPM.addArray(filLast1A.getBuffer(), DS4);
-                        calculateBPM(filLast1A.getBuffer());
+//                        calculateBPM(filLast1A.getBuffer());
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
@@ -526,7 +528,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
+//        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
@@ -536,7 +538,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(int[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
+//        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
@@ -545,7 +547,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
+//        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
@@ -791,7 +793,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                 textBuilder.append(ptext);
                 textBuilder.append(SEPARATOR);
             } catch (NullPointerException e) {
-                Log.e("", e.toString());
+                Log.e(TAG, e.toString());
             }
         }
 
@@ -817,7 +819,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             for (short audioFormat : new short[] { AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_8BIT }) {
                 for (short channelConfig : new short[] { AudioFormat.CHANNEL_IN_MONO /*, AudioFormat.CHANNEL_IN_STEREO*/ }) {
                     try {
-                        Log.d("REC", "Attempting rate " + rate + "Hz, bits: " + audioFormat + ", channel: "
+                        Log.d(TAG, "REC Attempt, rate: " + rate + "Hz, bits: " + audioFormat + ", ch: "
                                 + channelConfig);
                         int bufferSize = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat);
 
@@ -831,7 +833,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                             }
                         }
                     } catch (Exception e) {
-                        Log.e("REC", rate + "Exception, keep trying.",e);
+                        Log.e(TAG, "REC " + rate + "Exception, keep trying.",e);
                     }
                 }
             }
