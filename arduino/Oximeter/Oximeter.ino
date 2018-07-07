@@ -129,15 +129,32 @@ void loop() {
     t4 = micros();
 
     // Modulation
-    // Currently unmodulated at [-100, 100], converted to [0, 800]
-    chA = (100 + interA) * cos(2 * PI * FCA / FS * m) * 8 * 2;
-    chB = (100 + interB) * cos(2 * PI * FCB / FS * m) * 8 * 2;
+    // Currently unmodulated signal is [-100, 100], converted to [0, 200]
+    chA = (100 + interA) * cos(2 * PI * FCA / FS * m);
+    chB = (100 + interB) * cos(2 * PI * FCB / FS * m);
 
     t5 = micros();
 
-    // Halved from max range and combined
-    output = chA + chB;
-    dac.setVoltage(output, false);
+    // Combine, creating wave with range of [-400, 400]
+//    output = chA + chB;
+    output = chA;
+
+    // Amplify & offset to maximize range & avoid negatives
+    // Final output handling
+    /* Data about the range:
+     *  - For a full range wave [ -1, 1] in Audacity, phone data is good at ~50% vol
+     *  - For a half-range wave [-.5,.5] in Audacity, phone data is good at ~80-90% vol
+     *  - DAC sine with amp of 512 (4096 / 8, or 0,625 Vp) will result in a very little clipping
+     *  - Currently combined output is [0, 400] for dual ch
+     *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
+     *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
+     */
+    int temp = (output + 200) / 4;
+    if (temp > 1) {
+        dac.setVoltage(temp, false);
+    } else {
+        dac.setVoltage(1, false);
+    }
 
     if (n < MAXINDEX) {
         n++;

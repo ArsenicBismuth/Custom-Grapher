@@ -19,6 +19,8 @@ import java.util.LinkedList;
 public class SimpleWaveform extends View {
     Context context;
 
+    private static final String TAG = "SimpleWaveform";
+
     public final static int MODE_AMP_ORIGIN = 1;
     public final static int MODE_AMP_ABSOLUTE = 2;
     public int modeAmp;
@@ -91,6 +93,8 @@ public class SimpleWaveform extends View {
     private float[] peakPoints;
     private int barNum;
 
+    public int id = 0;
+
     private float[] xAxisPoints;
     public Paint xAxisPencil = new Paint();
 
@@ -123,6 +127,7 @@ public class SimpleWaveform extends View {
     public SimpleWaveform(Context context) {
         super(context);
         this.context = context;
+
         init();
     }
 
@@ -154,7 +159,7 @@ public class SimpleWaveform extends View {
 
         width = this.getWidth();
         height = this.getHeight();
-        Log.d("","SimpleWaveform: w,h: " + width +" "+height);
+        Log.d(TAG,"SimpleWaveform: w,h: " + width +" "+height);
 
         haveGotWidthHeight = width > 0 && height > 0;
 
@@ -220,7 +225,7 @@ public class SimpleWaveform extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        Log.d("", "normal view: onDraw()");
+//        Log.d(TAG, "normal view: onDraw()");
 
         if (clearScreenListener != null) {
             clearScreenListener.clearScreen(canvas);
@@ -250,7 +255,7 @@ public class SimpleWaveform extends View {
     private void drawWaveList(Canvas canvas) {
 
         if (!haveGotWidthHeight) {
-            Log.d("","SimpleWaveform: drawWaveList() return for no width and height");
+            Log.d(TAG,"SimpleWaveform: drawWaveList() return for no width and height");
             return;
         }
 

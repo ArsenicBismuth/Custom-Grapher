@@ -26,6 +26,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -130,11 +131,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    private static final int BPMTH = 0;  // Cross-over threshold for BPM calculation
-    private int cross = 0;      // Zero-crossing counter
-    private long millis = 0;    // Time tracker
+    private static final int BPMTH = 0; // Cross-over threshold for BPM calculation
+    private int cross = 0;              // Zero-crossing counter
+    private long peakTime = 0;          // Time tracker
+    private double peakVal = -999;      // Peak of a single wave
     private double pvalue = 0;
     private int bpm = 0;
+
+    private boolean rising = true;      // Rising past a certain threshold (default at zero)
 
     private String empty = "-";
 
@@ -204,9 +208,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Waveforms initialization
         simpleWaveformA = findViewById(R.id.simpleWaveformA);
         simpleWaveformA.setVisibility(View.VISIBLE);
+        simpleWaveformA.id = 1;
 
         simpleWaveformB = findViewById(R.id.simpleWaveformB);
         simpleWaveformB.setVisibility(View.VISIBLE);
+        simpleWaveformB.id = 2;
 
         amplitudeWave(simpleWaveformA, ampListA);
         amplitudeWave(simpleWaveformB, ampListB);
@@ -329,7 +335,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     }
 
     private void applySettings() {
-        Log.d("", "applySettings");
+        Log.d(TAG, "applySettings");
 
         // Get Shared Preferences under the default name "com.example.something_preferences"
         SharedPreferences sharedPref =
@@ -349,7 +355,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         if (setReset) {
             // Force the settings to revert to xml default values
-            Log.d("", "Reset");
+            Log.d(TAG, "Reset");
 //            sharedPref.edit().clear().apply();  // Apply() returns no value, faster because asynchronous
             sharedPref.edit().clear().commit();  // But Apply() might make the settings not fully reset
 
@@ -412,11 +418,11 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 ////        LinearLayout separator = findViewById(R.id.separator);
 //        if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) { // Default condition, which is the one currently used on the main layout
 ////            layoutWave.setOrientation(LinearLayout.VERTICAL);
-////            Log.d("", "portrait");
+////            Log.d(TAG, "portrait");
 //            // Since the height is based on weight, height must be zero, width MATCH_PARENT
 //        } else if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE){
 ////            layoutWave.setOrientation(LinearLayout.HORIZONTAL);
-////            Log.d("", "landscape");
+////            Log.d(TAG, "landscape");
 //            // Since the the one based on weight, width must be zero, height MATCH_PARENT
 //        }
 //    }
@@ -430,6 +436,29 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //            e.printStackTrace();
 //        }
 //    }
+
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int action = event.getAction();
+        int keyCode = event.getKeyCode();
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_VOLUME_UP:
+//                if (action == KeyEvent.ACTION_DOWN) {
+//                    // Do something on press
+//                }
+                // Do nothing
+                return true;
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+//                if (action == KeyEvent.ACTION_DOWN) {
+//                    // Do something on press
+//                }
+                // Do nothing
+                return true;
+            default:
+                return super.dispatchKeyEvent(event);
+        }
+    }
 
     private void startRecording() {
 
@@ -521,9 +550,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                                     addWaveData(dataB, simpleWaveformB);
                                 }
 
-//                                    addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
-//                                    addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
-
+                                setSPO2((int) peakVal);
                                 setBPM(bpm);
 
                                 setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
@@ -566,15 +593,24 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(short[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
+//        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
         }
     }
 
-    public void addWaveData(Double value, SimpleWaveform simpleWaveform) {
-        addWaveData(value.intValue(), simpleWaveform);
+    public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
+        int arrSize = arr.length;
+//        Log.d(TAG, "id " + simpleWaveform.id);
+//        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
+
+        for (int i = 0; i < arrSize; i++) {
+            if (i % downSample == 0) {
+                addWaveData((int) arr[i], simpleWaveform); // Add every x data
+                if ((simpleWaveform.id == 1) && (setBPM)) { calculateBPM(arr[i]); }
+            }
+        }
     }
 
     public void addWaveData(int value, SimpleWaveform simpleWaveform) {
@@ -612,30 +648,55 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         return true;
     }
 
-    private <T> void calculateBPM(LinkedList<Double> arr) {
-        for (double val : arr) {
-            // Check if rising
-            if ((pvalue < BPMTH) && (val > BPMTH)) {
-                // if the first in a batch
-                if (cross == 0) {
-                    millis = Calendar.getInstance().getTimeInMillis();
-                    Log.d("graph","millis " + millis);
-                }
+    private long tempTime = -1;
+    private double tempVal = -1;
 
-                cross++;
-            }
+    // TODO editable moving average for BPM
+    private void calculateBPM(double value) {
+        // Check if rising past a certain threshold
+        Log.d(TAG, String.valueOf(pvalue));
 
-            if (cross >= 4) {
-                bpm = 60000 / (int) (Calendar.getInstance().getTimeInMillis() - millis) * (cross - 1);
-                cross = 0;
-            }
-
-            if ((bpm < 0) || (bpm > 200)) {
-                bpm = -1;
-            }
-
-            pvalue = val;
+        if ((pvalue < BPMTH) && (value > BPMTH)) {
+            Log.d(TAG, "Wav Rise");
+            rising = true;
         }
+
+        // Search for peak in a single wave
+        if (rising) {
+            if (value > tempVal) {
+                tempVal = value;
+                tempTime = Calendar.getInstance().getTimeInMillis();
+                // At the end, value & time of current wave peak acquired
+            }
+        }
+
+        // Check if falling past a certain threshold
+        if ((pvalue > BPMTH) && (value < BPMTH)) {
+            // Finalize data, which is displayed on GUI
+            Log.d(TAG, "Wav Fall");
+            rising = false;
+
+            peakVal = tempVal;
+            tempVal = -1;
+
+            if (tempTime != peakTime) {
+                bpm = 60000 / (int)(tempTime - peakTime);    // Calculate using prev peakTime
+            }
+            peakTime = tempTime;
+
+            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
+        }
+
+        // Only show empty if invalid
+        if ((bpm < 0) || (bpm > 200)) {
+            bpm = -1;
+        }
+
+        if ((peakVal < 0) || (peakVal > 9999)) {
+            peakVal = -1;
+        }
+
+        pvalue = value;
     }
 
     private void setBPM(int value) {
@@ -644,6 +705,15 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             tBPM.setText(empty);
         } else {
             tBPM.setText(String.format("%d", value));
+        }
+    }
+
+    private void setSPO2(int value) {
+        if (value == -1) {
+            // Invalid calculation
+            tSPO2.setText(empty);
+        } else {
+            tSPO2.setText(String.format("%d", value));
         }
     }
 
@@ -817,7 +887,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                 textBuilder.append(ptext);
                 textBuilder.append(SEPARATOR);
             } catch (NullPointerException e) {
-                Log.e("", e.toString());
+                Log.e(TAG, e.toString());
             }
         }
 
@@ -843,7 +913,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             for (short audioFormat : new short[] { AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_8BIT }) {
                 for (short channelConfig : new short[] { AudioFormat.CHANNEL_IN_MONO /*, AudioFormat.CHANNEL_IN_STEREO*/ }) {
                     try {
-                        Log.d("REC", "Attempting rate " + rate + "Hz, bits: " + audioFormat + ", channel: "
+                        Log.d(TAG, "REC Attempt, rate: " + rate + "Hz, bits: " + audioFormat + ", ch: "
                                 + channelConfig);
                         int bufferSize = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat);
 
@@ -857,7 +927,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                             }
                         }
                     } catch (Exception e) {
-                        Log.e("REC", rate + "Exception, keep trying.",e);
+                        Log.e(TAG, "REC " + rate + "Exception, keep trying.",e);
                     }
                 }
             }
