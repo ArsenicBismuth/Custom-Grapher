@@ -25,6 +25,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -127,11 +128,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    private static final int BPMTH = 0;  // Cross-over threshold for BPM calculation
-    private int cross = 0;      // Zero-crossing counter
-    private long millis = 0;    // Time tracker
+    private static final int BPMTH = 0; // Cross-over threshold for BPM calculation
+    private int cross = 0;              // Zero-crossing counter
+    private long peakTime = 0;          // Time tracker
+    private double peakVal = -999;      // Peak of a single wave
     private double pvalue = 0;
     private int bpm = 0;
+
+    private boolean rising = true;      // Rising past a certain threshold (default at zero)
 
     private String empty = "-";
 
@@ -205,7 +209,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
         simpleWaveformB = findViewById(R.id.simpleWaveformB);
         simpleWaveformB.setVisibility(View.VISIBLE);
-        simpleWaveformA.id = 2;
+        simpleWaveformB.id = 2;
 
         amplitudeWave(simpleWaveformA, ampListA);
         amplitudeWave(simpleWaveformB, ampListB);
@@ -430,6 +434,29 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //        }
 //    }
 
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int action = event.getAction();
+        int keyCode = event.getKeyCode();
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_VOLUME_UP:
+//                if (action == KeyEvent.ACTION_DOWN) {
+//                    // Do something on press
+//                }
+                // Do nothing
+                return true;
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+//                if (action == KeyEvent.ACTION_DOWN) {
+//                    // Do something on press
+//                }
+                // Do nothing
+                return true;
+            default:
+                return super.dispatchKeyEvent(event);
+        }
+    }
+
     private void startRecording() {
 
         final short sData[] = new short[BufferElements2Rec];
@@ -491,12 +518,13 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast2A.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast2B.getBuffer(), simpleWaveformB, downSample);
 
-                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
+//                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
+//                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
-//                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
+                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
 
+                                setSPO2((int) peakVal);
                                 setBPM(bpm);
 
                                 setDebugMessages(String.valueOf(simpleWaveformB.absMax) + " / " +
@@ -547,10 +575,14 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
+//        Log.d(TAG, "id " + simpleWaveform.id);
 //        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData((int) arr[i], simpleWaveform); // Add every x data
+            if (i % downSample == 0) {
+                addWaveData((int) arr[i], simpleWaveform); // Add every x data
+                if ((simpleWaveform.id == 1) && (setBPM)) { calculateBPM(arr[i]); }
+            }
         }
     }
 
@@ -588,30 +620,55 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         return true;
     }
 
-    private void calculateBPM(double[] arr) {
-        for (double value : arr) {
-            // Check if rising
-            if ((pvalue < BPMTH) && (value > BPMTH)) {
-                // if the first in a batch
-                if (cross == 0) {
-                    millis = Calendar.getInstance().getTimeInMillis();
-                    Log.d("graph","millis " + millis);
-                }
+    private long tempTime = -1;
+    private double tempVal = -1;
 
-                cross++;
-            }
+    // TODO editable moving average for BPM
+    private void calculateBPM(double value) {
+        // Check if rising past a certain threshold
+        Log.d(TAG, String.valueOf(pvalue));
 
-            if (cross >= 4) {
-                bpm = 60000 / (int) (Calendar.getInstance().getTimeInMillis() - millis) * (cross - 1);
-                cross = 0;
-            }
-
-            if ((bpm < 0) || (bpm > 200)) {
-                bpm = -1;
-            }
-
-            pvalue = value;
+        if ((pvalue < BPMTH) && (value > BPMTH)) {
+            Log.d(TAG, "Wav Rise");
+            rising = true;
         }
+
+        // Search for peak in a single wave
+        if (rising) {
+            if (value > tempVal) {
+                tempVal = value;
+                tempTime = Calendar.getInstance().getTimeInMillis();
+                // At the end, value & time of current wave peak acquired
+            }
+        }
+
+        // Check if falling past a certain threshold
+        if ((pvalue > BPMTH) && (value < BPMTH)) {
+            // Finalize data, which is displayed on GUI
+            Log.d(TAG, "Wav Fall");
+            rising = false;
+
+            peakVal = tempVal;
+            tempVal = -1;
+
+            if (tempTime != peakTime) {
+                bpm = 60000 / (int)(tempTime - peakTime);    // Calculate using prev peakTime
+            }
+            peakTime = tempTime;
+
+            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
+        }
+
+        // Only show empty if invalid
+        if ((bpm < 0) || (bpm > 200)) {
+            bpm = -1;
+        }
+
+        if ((peakVal < 0) || (peakVal > 9999)) {
+            peakVal = -1;
+        }
+
+        pvalue = value;
     }
 
     private void setBPM(int value) {
@@ -620,6 +677,15 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             tBPM.setText(empty);
         } else {
             tBPM.setText(String.format("%d", value));
+        }
+    }
+
+    private void setSPO2(int value) {
+        if (value == -1) {
+            // Invalid calculation
+            tSPO2.setText(empty);
+        } else {
+            tSPO2.setText(String.format("%d", value));
         }
     }
 
