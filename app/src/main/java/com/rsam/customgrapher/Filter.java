@@ -73,41 +73,28 @@ public class Filter {
         buffer = new double[buffSize];
     }
 
-	public void addArray(short[] arr) {
-        addArray(arr, 1);
+	public void addArray(short[] arr, int gl_idx) {
+        addArray(arr, gl_idx, 1);
 	}
-
-	public void addArray(short[] arr, int downSample) {
+	
+	public void addArray(short[] arr, int gl_idx, int downSample) {
 //        buffer = new double[buffSize];                  // Remake buffer every add array request, creating lot of objects
         ib = 0;                                         // Restart buffer pointer
 		int arrSize = arr.length;
 		for (int i = 0; i < arrSize; i++) {
-			if (i % downSample == 0) addVal(arr[i]);    // Add every x data
+			if ((gl_idx + i) % downSample == 0) addVal(arr[i]);    // Add every x data
 		}
 	}
 
-	public void addArray(int[] arr) {
-		addArray(arr, 1);
-	}
-
-	public void addArray(int[] arr, int downSample) {
-//        buffer = new double[buffSize];                  // Remake buffer every add array request, creating lot of objects
-        ib = 0;                                         // Restart buffer pointer
-		int arrSize = arr.length;
-		for (int i = 0; i < arrSize; i++) {
-			if (i % downSample == 0) addVal(arr[i]);    // Add every x data
-		}
-	}
-
-    public void addArray(double[] arr) {
-        addArray(arr, 1);
+    public void addArray(double[] arr, int gl_idx) {
+        addArray(arr, gl_idx, 1);
     }
 
-    public void addArray(double[] arr, int downSample) {
+    public void addArray(double[] arr, int gl_idx, int downSample) {
         ib = 0;                                         // Restart buffer pointer
         int arrSize = arr.length;
         for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addVal(arr[i]);    // Add every x data
+            if ((gl_idx + i) % downSample == 0) addVal(arr[i]);    // Add every x data
         }
     }
 

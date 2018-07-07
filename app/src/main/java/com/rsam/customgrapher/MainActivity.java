@@ -96,6 +96,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //    private final int DS4 = 7;  // 7 Hz (1/7 from before, 1/6300 total)
     // Simplified for BPM calculation
 
+    private final int MAXINDEX = (DS0 * DS1 * DS2 * DS3);       // Used to reset the global iterator, avoiding overflow
+    int n = 1;      // Global index
+
     // The filters, one separate system for each channel
     // Buffer MUST be proportional to sampling rate, with full size BufferElements2Rec is used for REC_RATE
 //    private Filter filaa = new Filter(b_aa.length, b_aa, BufferElements2Rec / (DS0), false);
@@ -492,16 +495,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                        filChA.addArray(filaa.getBuffer(), DS1);     // HbO2
 //                        filChB.addArray(filaa.getBuffer(), DS1);     // Hb
 
-                        filChA.addArray(sData, DS0 * DS1 / fsdev);     // HbO2
-                        filChB.addArray(sData, DS0 * DS1 / fsdev);     // Hb
+                        filChA.addArray(sData, n, DS0 * DS1 / fsdev);     // HbO2
+                        filChB.addArray(sData, n, DS0 * DS1 / fsdev);     // Hb
 
                         // Rectify then clear carrier
-                        filDemodA.addArray(filChA.getBuffer(), DS2);
-                        filDemodB.addArray(filChB.getBuffer(), DS2);
+                        filDemodA.addArray(filChA.getBuffer(), n, DS2);
+                        filDemodB.addArray(filChB.getBuffer(), n, DS2);
 
                         // Precise filters, cleaning and/or removing offset
-                        filLast1A.addArray(filDemodA.getBuffer(), DS3);
-                        filLast1B.addArray(filDemodB.getBuffer(), DS3);
+                        filLast1A.addArray(filDemodA.getBuffer(), n, DS3);
+                        filLast1B.addArray(filDemodB.getBuffer(), n, DS3);
 
 //                        filLast2A.addArray(filLast1A.getBuffer(), DS4);
 //                        filLast2B.addArray(filLast1B.getBuffer(), DS4);
@@ -509,6 +512,16 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         // Very simple waveform for BPM calculation
 //                        filBPM.addArray(filLast1A.getBuffer(), DS4);
 //                        calculateBPM(filLast1A.getBuffer());
+
+                        // Iterate global index and reset continuously
+                        // The unawareness of global index will affect greatly on filters acquiring short buffers from prev one
+                        // Ex: Input as a buffer with size of 1 means every data is sampled without factoring downsample ratio
+                        if (n < (BufferElements2Rec * MAXINDEX)) {
+                            // Since it'll be assured that for every loop, sData'll be fully processed
+                            n += sData.length;
+                        } else {
+                            n = 1;
+                        }
 
                         // New, separate, UI Thread
                         runOnUiThread(new Runnable() {
@@ -521,8 +534,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
-                                addWaveArray(filChA.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
+                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filDemodA.getBuffer(), simpleWaveformB, downSample);
 
                                 setSPO2((int) peakVal);
                                 setBPM(bpm);
