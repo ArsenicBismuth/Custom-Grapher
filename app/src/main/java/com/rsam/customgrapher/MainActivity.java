@@ -490,46 +490,45 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                         recorder.read(sData, 0, BufferElements2Rec);
 
                         // Full scheme written on Readme.md
-//                        filaa.addArray(sData, DS0);     // Anti-aliasing
-//
-//                        filChA.addArray(filaa.getBuffer(), DS1);     // HbO2
-//                        filChB.addArray(filaa.getBuffer(), DS1);     // Hb
+                        // Main data
+                        for (short val : sData) {
+                            Log.d(TAG, "main");
 
-                        filChA.addArray(sData, DS0 * DS1 / fsdev);     // HbO2
-                        filChB.addArray(sData, DS0 * DS1 / fsdev);     // Hb
+                            // Add every x data
+                            if (n % (DS0 * DS1 / fsdev) == 0) {
+                                Log.d(TAG, "channel");
+                                filChA.addVal((double) val);   // HbO2
+                                filChB.addVal((double) val);   // Hb
+                            }
 
-                        // Rectify then clear carrier
-                        if (n % (DS0 * DS1 * DS2 / fsdev) == 0) {
-                            filDemodA.addVal(filChA.getBuffer());
-                            filDemodB.addVal(filChB.getBuffer());
-                        } else {
-                            // Just remove
-                            filChA.getBuffer();
-                            filChB.getBuffer();
-                        }
+                            // Rectify then clear carrier
+                            if (n % (DS0 * DS1 * DS2 / fsdev) == 0) {
+                                Log.d(TAG, "demod");
+                                filDemodA.addVal(filChA.getBuffer());
+                                filDemodB.addVal(filChB.getBuffer());
+                            } else {
+                                // Just remove
+                                filChA.getBuffer();
+                                filChB.getBuffer();
+                            }
 
-                        // Precise filters, cleaning and/or removing offset
-                        if (n % (DS0 * DS1 * DS2 * DS3 / fsdev) == 0) {
-                            filLast1A.addVal(filDemodA.getBuffer());
-                            filLast1B.addVal(filDemodB.getBuffer());
-                        } else {
-                            // Just remove
-                            filDemodA.getBuffer();
-                            filDemodB.getBuffer();
-                        }
+                            // Precise filters, cleaning and/or removing offset
+                            if (n % (DS0 * DS1 * DS2 * DS3 / fsdev) == 0) {
+                                Log.d(TAG, "final");
+                                filLast1A.addVal(filDemodA.getBuffer());
+                                filLast1B.addVal(filDemodB.getBuffer());
+                            } else {
+                                // Just remove
+                                filDemodA.getBuffer();
+                                filDemodB.getBuffer();
+                            }
 
-//                        filLast2A.addArray(filLast1A.getBuffer(), DS4);
-//                        filLast2B.addArray(filLast1B.getBuffer(), DS4);
-
-                        // Very simple waveform for BPM calculation
-//                        filBPM.addArray(filLast1A.getBuffer(), DS4);
-//                        calculateBPM(filLast1A.getBuffer());
-
-                        // Iterate global index, and reset continuously
-                        if (n < MAXINDEX) {
-                            n++;
-                        } else {
-                            n = 1;
+                            // Iterate global index, and reset continuously
+                            if (n < MAXINDEX) {
+                                n++;
+                            } else {
+                                n = 1;
+                            }
                         }
 
                         // New, separate, UI Thread
@@ -537,10 +536,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                             @Override
                             public void run() {
                                 // TODO Just a marking
-//                                addWaveArray(filLast2A.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast2B.getBuffer(), simpleWaveformB, downSample);
 
-                                double dataA = filChA.getBuffer();
+                                // Remember that getBuffer is destructive
+                                double dataA = filLast1B.getBuffer();
                                 double dataB = filLast1A.getBuffer();
                                 if (dataA != -999) {
                                     addWaveData(dataA, simpleWaveformA);
@@ -582,7 +580,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(LinkedList<Double> arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.size();
-        Log.d("", "dataLength: " + String.valueOf(arrSize));
+//        Log.d("", "dataLength: " + String.valueOf(arrSize));
 
         int i = 0;
         for (Double val : arr) {
@@ -602,22 +600,21 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     public void addWaveArray(double[] arr, SimpleWaveform simpleWaveform, int downSample) {
         int arrSize = arr.length;
-//        Log.d(TAG, "id " + simpleWaveform.id);
 //        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
             if (i % downSample == 0) {
                 addWaveData((int) arr[i], simpleWaveform); // Add every x data
-                if ((simpleWaveform.id == 1) && (setBPM)) { calculateBPM(arr[i]); }
             }
         }
     }
 
-    public void addWaveData(int value, SimpleWaveform simpleWaveform) {
+    public void addWaveData(double value, SimpleWaveform simpleWaveform) {
         // Should be called inside an UI Thread since contains View.invalidate()
 
         // Calculate the point location, normalization done inside the SimpleWaveform
-        simpleWaveform.dataList.addFirst(value);
+        simpleWaveform.dataList.addFirst((int) value);
+        if ((simpleWaveform.id == 1) && (setBPM)) { calculateBPM(value); }
 
         while (simpleWaveform.dataList.size() > simpleWaveform.width / simpleWaveform.barGap * waveListMulti + 2) {
             // Wave list multi used to make the list contains more data than necessary, debugging & data acquiring purpose
@@ -654,10 +651,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     // TODO editable moving average for BPM
     private void calculateBPM(double value) {
         // Check if rising past a certain threshold
-        Log.d(TAG, String.valueOf(pvalue));
+//        Log.d(TAG, String.valueOf(pvalue));
 
         if ((pvalue < BPMTH) && (value > BPMTH)) {
-            Log.d(TAG, "Wav Rise");
+//            Log.d(TAG, "Wav Rise");
             rising = true;
         }
 
@@ -673,7 +670,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Check if falling past a certain threshold
         if ((pvalue > BPMTH) && (value < BPMTH)) {
             // Finalize data, which is displayed on GUI
-            Log.d(TAG, "Wav Fall");
+//            Log.d(TAG, "Wav Fall");
             rising = false;
 
             peakVal = tempVal;
@@ -684,7 +681,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
             peakTime = tempTime;
 
-            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
+//            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
         }
 
         // Only show empty if invalid
