@@ -39,7 +39,7 @@ void Filter::init() {
 int st = 0; // The array index for x[n] in circular buffer
 
 // Add value and simultanteously compute the result
-void Filter::addVal(int value) {
+void Filter::addVal(float value) {
     
     // Shifting the start of circular buffer FORWARD, since
     // the prev x(n) is x(n-1) now.

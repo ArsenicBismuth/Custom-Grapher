@@ -21,7 +21,7 @@ class Filter
     public:
         Filter(int order, float *b, float *a);
         Filter(int order, float *b);
-        void addVal(int value);  // Add value and compute
+        void addVal(float value);  // Add value and compute
         float getVal();
 };
 
