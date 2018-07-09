@@ -27,7 +27,7 @@ Downsample specs are written respective to previous condition.
    - FIR, ? / 0.6, -30dB, 51st order => 0.11 / 0.6  @25Hz (Offset to 0.22 / 1.2 @50Hz)
 5. Test: Amplify 8x for better SNR
    - Signal Vpp must be less than 1/2 audio jack range for modulation purpose
-6. Upsample to 100Hz & interpolate => Test: 4x prev or 1/2x total
+6. Upsample to 100Hz & interpolate => Test: 4x prev or 1x total
    - Interpolation receives at min 2 data, and values as small as
      the interpolation rate to be created
    - Test: No interpolation
@@ -47,7 +47,7 @@ Receive a single signal containing two channels through the audio jack.
 3. Downsample by 2x => 245Hz
 4. Demodulate each
    - Rectify (actually reqires the sampling rate to be more than 2x[2x] of all the carriers)
-   - FIR, 5 \ 10, -60dB => 110th order
+   - FIR, 5 \ 10, -40dB => 83th order
 5. Downsample by 5x => 49Hz
 6. Noise & offset filtering
    - Alternatives:
