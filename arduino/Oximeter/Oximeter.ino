@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
 #include "Filter.h"
+#include <TimerOne.h>
 
 Adafruit_MCP4725 dac;
 #define SERIAL_BUFFER_SIZE 32
@@ -33,16 +34,19 @@ Filter filNormA(sizeof(bNorm)/sizeof(float), bNorm);
 Filter filNormB(sizeof(bNorm)/sizeof(float), bNorm);
 
 #define US3 4   // Upsampling for interpolation
+#define USO 5   // Global upsampling for output interpolation, special (inside interrupt)
+
 #define MAXINDEX (DS0 * DS1 * DS2)       // Used to reset the global iterator, avoiding overflow
 
-#define FS 200                  
+#define FS  200         // Loop rate
+#define FSI (FS * USO)  // Output interrupt rate 
 #define FSC (FS / DS0 / DS1 / DS2 * US3) // Data rate at the time for modulation
 
 // Carriers
 #define FCA 60
 #define FCB 100
 
-#define MAXINDEX2 ((FS/FCA) * (FS/FCB)) // Used to separate carrier index from global iterator to keep MAXINDEX low
+#define MAXINDEX2 ((FSI/FCA) * (FSI/FCB)) // Used to separate carrier index from global iterator to keep MAXINDEX low
 
 // Negative limit for modulation
 #define NEG 100
@@ -62,15 +66,61 @@ float interA = 0;
 float interB = 0;
 float distA = 0;
 float distB = 0;
+float interO = 0;
+float distO = 0;
 int output = 0;
 int n = 1;      // Global index
 long m = 1;     // Index used for cosine
 unsigned long t0, t1, t2, t3, t4, t5, t6;
 
+// Interrupt at FSI (Hz)
+void result() {
+    // Final output handling
+    sei();  // Allow I2C inside ISR
+    
+    /*  Using separate process to output at higher speed than the loop rate,
+     *  allowing for a non-blocky Sine output for DAC. Thus preventing
+     *  spikes caused by internal phone HPF.
+     *  
+     *  Basically upsampling to a larger rate than loop rate.
+     */
+    
+    // Interpolation
+    distO = output - interO;
+    interO += distO / USO;
+    
+    // Amplify & offset to maximize range & avoid negatives
+    // Final output handling
+    /* Data about the range:
+     *  - For a full range wave [ -1, 1] in Audacity, phone data is good at ~50% vol
+     *  - For a half-range wave [-.5,.5] in Audacity, phone data is good at ~80-90% vol
+     *  - DAC sine with amp of 512 (4096 / 8, or 0,625 Vp) will result in a very little clipping
+     *  - Currently combined output is [0, 400] for dual ch
+     *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
+     *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
+     */
+//    int temp = (interO + 200) / 4;
+    int temp = (interO + 200);      // [-200, 200] => [0, 400]
+    if (temp > 1) {
+        dac.setVoltage(temp, false);
+    } else {
+        dac.setVoltage(1, false);
+    }
+
+    // Only max 1 or 2 serial prints may be activated
+//    Serial.print(inA); Serial.print(" ");
+//    Serial.print(output); Serial.print(" ");
+    Serial.print(interO);  Serial.print(" ");
+    Serial.println();
+}
+
 void setup() {
     Serial.begin(250000);
     pinMode(5, OUTPUT);
     dac.begin(0x62);
+
+    Timer1.initialize(1000000/FSI);     // Time in us
+    Timer1.attachInterrupt(result);     // Do modulation & final output at 1kHZ
 }
 
 void loop() {
@@ -134,33 +184,18 @@ void loop() {
     t4 = micros();
 
     // Modulation
-    // Currently unmodulated signal is [-100, 100], converted to [0, 200]
-    
-    chA = ((interA > -NEG) ? (NEG + interA) : (NEG + 0)) * cos(2 * PI * FCA / FS * m);
-    chB = ((interB > -NEG) ? (NEG + interB) : (NEG + 0)) * cos(2 * PI * FCB / FS * m);
+    // Currently MESSAGE is [-100, 100], converted to [0, 200]
+    chA = ((interA > -NEG) ? (NEG + interA) : (0)) * cos(2 * PI * FCA / FS * m);
+    chB = ((interB > -NEG) ? (NEG + interB) : (0)) * cos(2 * PI * FCB / FS * m);
 
     t5 = micros();
 
+    // Set interpolation start as the prev result
+    interO = output;
     // Combine, creating wave with range of [-400, 400]
-//    output = chA + chB;
-    output = chA;
+    output = chA;// + ChB;
 
-    // Amplify & offset to maximize range & avoid negatives
-    // Final output handling
-    /* Data about the range:
-     *  - For a full range wave [ -1, 1] in Audacity, phone data is good at ~50% vol
-     *  - For a half-range wave [-.5,.5] in Audacity, phone data is good at ~80-90% vol
-     *  - DAC sine with amp of 512 (4096 / 8, or 0,625 Vp) will result in a very little clipping
-     *  - Currently combined output is [0, 400] for dual ch
-     *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
-     *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
-     */
-    int temp = (output + 200) / 4;
-    if (temp > 1) {
-        dac.setVoltage(temp, false);
-    } else {
-        dac.setVoltage(1, false);
-    }
+    // Final output handling, inside interrupt
 
     if (n < MAXINDEX) {
         n++;
@@ -176,32 +211,45 @@ void loop() {
 
     t6 = micros();
 
-//    Serial.print(-n/100.0f); Serial.print("\t");
-//    Serial.print(t1 - t0); Serial.print("\t");
-//    Serial.print(t2 - t1); Serial.print("\t");
-//    Serial.print(t3 - t2); Serial.print("\t");
-//    Serial.print(t4 - t3); Serial.print("\t");
-//    Serial.print(t5 - t4); Serial.print("\t");
-//    Serial.print(t6 - t5); Serial.print("\t");
-//    Serial.print(t6 - t0); Serial.print("\t");
-//    Serial.print(micros() - t6); Serial.print("\t");
-    
-    Serial.print(-n/1.0f); Serial.print(" ");
-    Serial.print(input); Serial.print(" ");
-    Serial.print(inA); Serial.print(" ");
-    Serial.print(inB); Serial.print(" ");
-    Serial.print(inOff); Serial.print(" ");
-    Serial.print(dsA); Serial.print(" ");
-    Serial.print(dsB); Serial.print(" ");
-    Serial.print(filA); Serial.print(" ");
-    Serial.print(filB); Serial.print(" ");
-    Serial.print(interA); Serial.print(" ");
-    Serial.print(interB); Serial.print(" ");
-    Serial.print(chA); Serial.print(" ");
-    Serial.print(chB); Serial.print(" ");
-    Serial.print(output); Serial.print(" ");
-    
-    Serial.println();
+////    Serial.print(-n/100.0f); Serial.print("\t");
+////    Serial.print(t1 - t0); Serial.print("\t");
+////    Serial.print(t2 - t1); Serial.print("\t");
+////    Serial.print(t3 - t2); Serial.print("\t");
+////    Serial.print(t4 - t3); Serial.print("\t");
+////    Serial.print(t5 - t4); Serial.print("\t");
+////    Serial.print(t6 - t5); Serial.print("\t");
+////    Serial.print(t6 - t0); Serial.print("\t");
+////    Serial.print(micros() - t6); Serial.print("\t");
+//    
+//    Serial.print(-n/1.0f); Serial.print(" ");
+//    Serial.print(input); Serial.print(" ");
+//    Serial.print(inA); Serial.print(" ");
+//    
+////    Serial.print(inB); Serial.print(" ");
+////    Serial.print(inOff); Serial.print(" ");
+////    Serial.print(dsA); Serial.print(" ");
+////    Serial.print(dsB); Serial.print(" ");
+////    Serial.print(filA); Serial.print(" ");
+////    Serial.print(filB); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//
+//    Serial.print(interA, 16); Serial.print(" ");
+//    Serial.print(interB); Serial.print(" ");
+//    
+////    Serial.print(chA); Serial.print(" ");
+////    Serial.print(chB); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    Serial.print(0); Serial.print(" ");
+//    
+//    Serial.print(output); Serial.print(" ");
+//    Serial.print(interO); Serial.print(" ");
+//    
+//    Serial.println();
 }
 
 int modulo(int dividend, int divisor) {
