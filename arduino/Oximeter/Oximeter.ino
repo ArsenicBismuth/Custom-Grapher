@@ -34,19 +34,23 @@ Filter filNormA(sizeof(bNorm)/sizeof(float), bNorm);
 Filter filNormB(sizeof(bNorm)/sizeof(float), bNorm);
 
 #define US3 4   // Upsampling for interpolation
-#define USO 5   // Global upsampling for output interpolation, special (inside interrupt)
+#define USO 4  // Global upsampling for output interpolation
 
 #define MAXINDEX (DS0 * DS1 * DS2)       // Used to reset the global iterator, avoiding overflow
 
-#define FS  200         // Loop rate
-#define FSI (FS * USO)  // Output interrupt rate 
+/*  Both FS and USO can be focused to obtain:
+ *  - FS:  More detailed data, including the carrier, but less room for interpolation
+ *  - USO: Less blocky output, but will reduce loop speed FS and thus output triangluar data rather than sinusoidal
+ */
+#define FS 300          // Loop rate
+#define FSI (FS * USO)  // Output rate 
 #define FSC (FS / DS0 / DS1 / DS2 * US3) // Data rate at the time for modulation
 
 // Carriers
 #define FCA 60
 #define FCB 100
 
-#define MAXINDEX2 ((FSI/FCA) * (FSI/FCB)) // Used to separate carrier index from global iterator to keep MAXINDEX low
+#define MAXINDEX2 ((FS/FCA) * (FS/FCB)) // Used to separate carrier index from global iterator to keep MAXINDEX low
 
 // Negative limit for modulation
 #define NEG 100
@@ -73,54 +77,13 @@ int n = 1;      // Global index
 long m = 1;     // Index used for cosine
 unsigned long t0, t1, t2, t3, t4, t5, t6;
 
-// Interrupt at FSI (Hz)
-void result() {
-    // Final output handling
-    sei();  // Allow I2C inside ISR
-    
-    /*  Using separate process to output at higher speed than the loop rate,
-     *  allowing for a non-blocky Sine output for DAC. Thus preventing
-     *  spikes caused by internal phone HPF.
-     *  
-     *  Basically upsampling to a larger rate than loop rate.
-     */
-    
-    // Interpolation
-    distO = output - interO;
-    interO += distO / USO;
-    
-    // Amplify & offset to maximize range & avoid negatives
-    // Final output handling
-    /* Data about the range:
-     *  - For a full range wave [ -1, 1] in Audacity, phone data is good at ~50% vol
-     *  - For a half-range wave [-.5,.5] in Audacity, phone data is good at ~80-90% vol
-     *  - DAC sine with amp of 512 (4096 / 8, or 0,625 Vp) will result in a very little clipping
-     *  - Currently combined output is [0, 400] for dual ch
-     *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
-     *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
-     */
-//    int temp = (interO + 200) / 4;
-    int temp = (interO + 200);      // [-200, 200] => [0, 400]
-    if (temp > 1) {
-        dac.setVoltage(temp, false);
-    } else {
-        dac.setVoltage(1, false);
-    }
-
-    // Only max 1 or 2 serial prints may be activated
-//    Serial.print(inA); Serial.print(" ");
-//    Serial.print(output); Serial.print(" ");
-    Serial.print(interO);  Serial.print(" ");
-    Serial.println();
-}
-
 void setup() {
     Serial.begin(250000);
     pinMode(5, OUTPUT);
     dac.begin(0x62);
 
-    Timer1.initialize(1000000/FSI);     // Time in us
-    Timer1.attachInterrupt(result);     // Do modulation & final output at 1kHZ
+//    Timer1.initialize(1000000 / FSI);   // Time in us
+//    Timer1.attachInterrupt(result);     // Do modulation & final output at 1kHZ
 }
 
 void loop() {
@@ -194,9 +157,47 @@ void loop() {
     interO = output;
     // Combine, creating wave with range of [-400, 400]
     output = chA;// + ChB;
+    distO = output - interO;    // Distance of prev data to current data
 
-    // Final output handling, inside interrupt
+    // Final output handling
+    /*  Using separate process to output at higher speed than the loop rate,
+     *  allowing for a non-blocky Sine output for DAC. Thus preventing
+     *  spikes caused by internal phone HPF.
+     *  
+     *  Basically upsampling to a larger rate than loop rate.
+     */
+    
+    // Consequtive outputs
+    for (int i = 0; i < USO; i++) {
+        // Amplify & offset to maximize range & avoid negatives
+        /* Data about the range:
+         *  - For a full range wave [ -1, 1] in Audacity, phone data is good at ~50% vol
+         *  - For a half-range wave [-.5,.5] in Audacity, phone data is good at ~80-90% vol
+         *  - DAC sine with amp of 512 (4096 / 8, or 0,625 Vp) will result in a very little clipping
+         *  - Currently combined output is [0, 400] for dual ch
+         *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
+         *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
+         */
+//        int temp = (interO + 200) / 4;
+        int temp = (interO + 200) * 2 + 2;      // [-200, 200] => [0, 400]
+        
+        if (temp > 2) {
+            dac.setVoltage(temp,c false);
+        } else {
+            dac.setVoltage(2, false);
+        }
 
+        // Interpolation
+        interO += distO / USO;  // Incrementally approach current data
+
+        // Only max 1 or 2 serial prints may be activated
+//        Serial.print(inA); Serial.print(" ");
+//        Serial.print(output); Serial.print(" ");
+        Serial.print(interO);  Serial.print(" ");
+        Serial.println();
+    }
+
+    // Global iterator
     if (n < MAXINDEX) {
         n++;
     } else {
