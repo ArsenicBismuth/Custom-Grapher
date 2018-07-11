@@ -350,6 +350,12 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         downSample = Integer.parseInt(sharedPref.getString("value-downsample", "1"));
         setReset = sharedPref.getBoolean("switch-reset", false);
         setGap = Integer.parseInt(sharedPref.getString("value-gap", "2"));
+
+        // Validation
+        if (setGap <= 0) setGap = 1;
+        if (downSample <= 0) downSample = 1;
+
+
         simpleWaveformA.barGap = setGap;
         simpleWaveformB.barGap = setGap;
 
@@ -540,8 +546,9 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
-                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filDemodA.getBuffer(), simpleWaveformB, downSample);
+                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLast1A.getBuffer(), simpleWaveformB, downSample);
+//                                addWaveArray(sData, simpleWaveformB, downSample);
 
                                 setSPO2((int) peakVal);
                                 setBPM(bpm);
@@ -849,6 +856,19 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     private void toClipboard(double[] values) {
         toClipboard(values, false);
+    }
+
+    private void toClipboard(short[] values, boolean append) {
+        // Convert to linked list
+        LinkedList<Integer> ll = new LinkedList<Integer>();
+
+        int size = values.length;
+
+        for (int i = 0; i < size; i++) {
+            ll.add((int) values[i]);
+        }
+
+        toClipboard(ll, append);
     }
 
     private void toClipboard(double[] values, boolean append) {
