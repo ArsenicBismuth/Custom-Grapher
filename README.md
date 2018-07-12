@@ -1,6 +1,6 @@
 # CustomGrapher
 ### Full Scheme
-**MCU** (Fs = ~200Hz)
+**MCU** [Fs = ~200Hz]
 Obtain HbO2 and Hb signal from sensor and transmit them both through a single signal.
 Sampling may be done through interrupt for more accurate rate. Another way would be
 doing it directly, and design filters which with cutoff deviation in mind.
@@ -10,7 +10,7 @@ Current implementation specified as:
 
    - Single signal HbO2
    - No diode switching, but data input switching implemented
-
+   
 Downsample specs are written respective to previous condition.
 
 1. Read analog data for Hb and HbO2 alternately
@@ -18,25 +18,33 @@ Downsample specs are written respective to previous condition.
    - The off state can be used to inspect offset
    - Due to low order of the analog system, effect from
 	 previous states would be short but still exist
-2. Test: Downsample by 4x => 50Hz (Simulating switching)
+2. Downsample by 4x => 50Hz (Simulating switching)
    - Since there're 4 input states, input downsampled 1x ==> 200Hz
 3. [Removed] Noise filtering (Too many memory)
    - FIR, 12 \ ?, -30dB, 11th order => 12 \ 18
 4. Downsample by 1x => 50Hz
 4. Offset filtering
    - FIR, ? / 0.6, -30dB, 51st order => 0.11 / 0.6  @25Hz (Offset to 0.22 / 1.2 @50Hz)
-5. Test: Amplify 8x for better SNR
+5. Amplify 1x for better SNR
    - Signal Vpp must be less than 1/2 audio jack range for modulation purpose
 6. Upsample to 100Hz & interpolate => Test: 4x prev or 1x total
    - Interpolation receives at min 2 data, and values as small as
      the interpolation rate to be created
-   - Test: No interpolation
-6. Modulate each using DSBAM
+6. Modulate each using DSBAM square carrier
    - HbO2, ch1 (70Hz)
    - Hb,   ch2 (100Hz)
-   - Test: Modulation index 100% (signal zero at 1/2 modulated signal peak)
-7. Decrease Xx so that each has amplitude < half the full range
+   - Modulation index 100% (signal zero at 1/2 modulated signal peak)
+7. Decrease 8x so that each has amplitude < half the full range
 8. Mix ch1 & ch2 and transmit
+
+Testing rate specs for the scheme abovet:
+   
+   - Common single loop speed (15/16) = ~2.86kHz - 6.6kHz
+   - Slowest single loop speed (1/16) = ~300Hz - 370Hz
+   - Average loop speed = ~2.7kHz - 6.2kHz
+   - New data sampling rate = ~29Hz - 50Hz
+   
+   
    
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
