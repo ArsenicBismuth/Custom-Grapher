@@ -22,7 +22,7 @@ float bNorm[51] = {0.00412053114641298, -0.0312793191356909, -0.0115236109767417
 //float bNorm[] = {0.5, -0.5};
 
 // Down/upsampling rate, specified relative to previous process
-#define DS0 4   // Downsampling rate FS0 = FS / DS1, for input
+#define DS0 1   // Downsampling rate FS0 = FS / DS1, for input
 #define DS1 4   // Downsampling due to switching of 4 states
 
 // Remember b's passed by reference
@@ -42,12 +42,12 @@ Filter filNormB(sizeof(bNorm)/sizeof(float), bNorm);
  *  - USO: Less blocky output, but will reduce loop speed FS and thus output triangluar data rather than sinusoidal
  */
 #define FS  990 // Loop rate (Hz)
-#define FSI 1500 // Interrupt rate (Hz), somehow multiple of carrier freq produce a big low-freq noise
+#define FSI 1000 // Interrupt rate (Hz), somehow multiple of carrier freq produce a big low-freq noise
 #define FSC (FS / DS0 / DS1 / DS2 * US3) // Data rate at the time for modulation
 
 // Carriers
-#define FCA 70
-#define FCB 100
+#define FCA 100
+#define FCB 200
 
 // Value of square carrier iterator until they're switched
 #define FLIPA (FSI / FCA)
@@ -92,7 +92,7 @@ void result() {
     chB = ((interB > -NEG) ? (NEG + interB) : (0)) * carrB;
 
     // Combine, creating wave with range of [-400, 400]
-    output = chA;// + ChB;
+    output = (chA + chB) / 2;
 
     // Final output handling    
     // Amplify & offset to maximize range & avoid negatives
@@ -127,7 +127,8 @@ void result() {
 
     // Only max 1 or 2 serial prints may be activated
 //    Serial.print(inA); Serial.print(" ");
-    Serial.print(output); Serial.print(" ");
+    Serial.print(filA); Serial.print(" ");
+//    Serial.print(interA); Serial.print(" ");
 //    Serial.print(interO);  Serial.print(" ");
     Serial.println();
 }
