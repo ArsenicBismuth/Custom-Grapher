@@ -44,14 +44,16 @@ Testing rate specs for the scheme abovet:
    - Average loop speed = ~2.7kHz - 6.2kHz
    - New data sampling rate = ~29Hz - 50Hz
    
-   
-   
 **Phone** (Fs = 44100Hz)
 Receive a single signal containing two channels through the audio jack.
-1. Downsample by 90x => 490Hz
+1. Anti-aliasing filter, multi stage
+   - FIR, -6dB @ 700Hz, 111th order => -0.3dB @ 210Hz
+   - Downsample by 30 => 1470Hz
+   - FIR, -6dB @ 240Hz, 61st order => -0.3dB @ 210Hz
+1. Downsample by 3x => 490Hz
 2. Separate channels
-   - Separate HbO2, ch1  (70Hz): FIR, 80 \ 90, -60dB => 100th order
-   - Separate Hb,   ch2 (100Hz): FIR, 80 / 90, -60dB => 105th order
+   - Separate HbO2, ch1 (100Hz): FIR, 110 \ 150, -60dB => 26th order
+   - Separate Hb,   ch2 (200Hz): FIR, 150 / 190, -60dB => 28th order
 3. Downsample by 2x => 245Hz
 4. Demodulate each
    - Rectify (actually reqires the sampling rate to be more than 2x[2x] of all the carriers)
@@ -93,3 +95,8 @@ thus might contain stuffs mentioned without context.
    2. Add a new header inside pref_headers.xml
    3. Inside SettingsActivity.java, add similar code as its neighbor inside "isValidFragment" method
    4. Add another PreferenceFragment static class, again similar to its neighbor
+- Signals characteristics
+   - Square = ~10Hz components around specified freq & aliasing at x3, x5, etc
+   - Square no-Alias = Similar with previous but the stepping adds 2 additional sample (@44.1kHz)
+   - Sawtooth = ~10Hz components around specified freq & aliasing at x2, x3, etc
+   - Sine = No aliasing
