@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
     LinkedList<Integer> ampListA = new LinkedList<>();  // Data used by Waveform
     LinkedList<Integer> ampListB = new LinkedList<>();
-    private static final int waveListMulti = 32;         // Multiplier for the waveform list size, TODO reduce on release
+    private static final int waveListMulti = 2;         // Multiplier for the waveform list size, TODO reduce on release
 
     private static final int REC_RATE = 44100;
     private static final int REC_CH = AudioFormat.CHANNEL_IN_MONO;
@@ -551,8 +551,8 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
 //                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
-                                addWaveArray(filDemodA.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filDemodB.getBuffer(), simpleWaveformB, downSample);
+                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
+                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 //                                addWaveArray(sData, simpleWaveformB, downSample);
 
                                 setSPO2((int) peakVal);
@@ -657,10 +657,10 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     // TODO editable moving average for BPM
     private void calculateBPM(double value) {
         // Check if rising past a certain threshold
-        Log.d(TAG, String.valueOf(pvalue));
+//        Log.d(TAG, String.valueOf(pvalue));
 
         if ((pvalue < BPMTH) && (value > BPMTH)) {
-            Log.d(TAG, "Wav Rise");
+//            Log.d(TAG, "Wav Rise");
             rising = true;
         }
 
@@ -676,7 +676,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         // Check if falling past a certain threshold
         if ((pvalue > BPMTH) && (value < BPMTH)) {
             // Finalize data, which is displayed on GUI
-            Log.d(TAG, "Wav Fall");
+//            Log.d(TAG, "Wav Fall");
             rising = false;
 
             peakVal = tempVal;
@@ -687,7 +687,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
             }
             peakTime = tempTime;
 
-            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
+//            Log.d(TAG, "Wav peak" + String.valueOf(peakVal) + " " + String.valueOf(bpm));
         }
 
         // Only show empty if invalid
