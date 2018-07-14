@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
     TextView tBPM;
     TextView tSPO2;
 
-    private static final int BPMTH = 0; // Cross-over threshold for BPM calculation
+    private static final int BPMTH = -1000; // Cross-over threshold for BPM calculation
     private int cross = 0;              // Zero-crossing counter
     private long peakTime = 0;          // Time tracker
     private double peakVal = -999;      // Peak of a single wave
@@ -552,7 +552,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
                                 addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
-                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
+                                addWaveData(bpm * 1000, simpleWaveformB);
 //                                addWaveArray(sData, simpleWaveformB, downSample);
 
                                 setSPO2((int) peakVal);
@@ -560,7 +560,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 
                                 setDebugMessages(String.valueOf(simpleWaveformA.absMax) + " / " +
                                                         String.valueOf(simpleWaveformA.absMaxIndex), 1);
-                                setDebugMessages(String.valueOf(ampListB.peekFirst()), 2);
+                                setDebugMessages(String.valueOf(ampListA.peekFirst()), 2);
                                 setDebugMessages(String.valueOf(dataNum), 3);
                             }
                         });
@@ -590,7 +590,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform);    // Add every x data
+            if (i % downSample == 0) addWaveData(arr[i] * 128, simpleWaveform);    // Add every x data
 //            arr[i] = 0;     // Zeroing, thus destructive. Not really necessary based on previous tests, but create a possible problem
         }
     }
@@ -600,7 +600,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
 //        Log.d(TAG, "dataLength: " + String.valueOf(arrSize));
 
         for (int i = 0; i < arrSize; i++) {
-            if (i % downSample == 0) addWaveData(arr[i], simpleWaveform); // Add every x data
+            if (i % downSample == 0) addWaveData(arr[i] * 128, simpleWaveform); // Add every x data
         }
     }
 
@@ -795,7 +795,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         simpleWaveform.barGap = setGap;
 
         //define the full height range normalization
-        simpleWaveform.modeNormal = SimpleWaveform.MODE_NORMAL_MAX; // Set full height as 2*amplitude
+        simpleWaveform.modeNormal = SimpleWaveform.MODE_NORMAL_VALUE_MAX; // Set full height as 2*amplitude
 
         //define x-axis direction
         simpleWaveform.modeDirection = SimpleWaveform.MODE_DIRECTION_RIGHT_LEFT;

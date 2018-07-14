@@ -46,9 +46,11 @@ public class SimpleWaveform extends View {
     public final static int MODE_NORMAL_NONE = 1;
     public final static int MODE_NORMAL_VALUE = 2;      // Normalize full height to a value (variable normalMax)
     public final static int MODE_NORMAL_MAX = 3;        // Normalize full height based on the data list
+    public final static int MODE_NORMAL_VALUE_MAX = 4;  // Use MODE_NORMAL_VALUE if range is too small, otherwise NORMAL_MAX
     public int modeNormal;                              // Setting how to scale the full height range
 
-    public int normalMax = 65536;   // Changeable
+//    public int normalMax = 65536;   // Changeable
+    public int normalMax = 6000;    // Changeable
     public int absMax = -1;         // Max of absolutes, doubled to be a range
     public int absMaxIndex;         // Keeping the location of max, reset max if it's gone
 
@@ -312,7 +314,14 @@ public class SimpleWaveform extends View {
                 if (modeNormal == MODE_NORMAL_VALUE) {
                     raw = raw * (height - 1) / normalMax;
                 } else if (modeNormal == MODE_NORMAL_MAX) {
-                    raw = raw * (height - 1) / (range);
+                    raw = raw * (height - 1) / range;
+                } else if (modeNormal == MODE_NORMAL_VALUE_MAX) {
+                    // Use NORMAL VALUE if range is too small
+                    if (range < normalMax) {
+                        raw = raw * (height - 1) / normalMax;
+                    } else {
+                        raw = raw * (height - 1) / range;
+                    }
                 }
             }
 

@@ -56,6 +56,9 @@ Filter filNormB(sizeof(bNorm)/sizeof(float), bNorm);
 // Negative limit for modulation
 #define NEG 100
 
+// Bottom limit at output
+#define BOTTOM 10
+
 // Var
 int input;
 int inA;
@@ -91,8 +94,9 @@ void result() {
     chA = ((interA > -NEG) ? (NEG + interA) : (0)) * carrA;
     chB = ((interB > -NEG) ? (NEG + interB) : (0)) * carrB;
 
-    // Combine, creating wave with range of [-400, 400]
-    output = (chA + chB) / 2;
+    // Combine, creating wave with range of [-200, 200]
+//    output = (chA + chB) / 2;
+    output = chA;
 
     // Final output handling    
     // Amplify & offset to maximize range & avoid negatives
@@ -104,12 +108,12 @@ void result() {
      *  - Audiacity full-range wave at 10% vol playback equals to a full-range wave at recording
      *  - Optimal conclusion: 50% Audacity playback => 5% Audacity record => 25.6 Arduino DAC (3mVp)
      */
-    int temp = (output + 2*NEG) / 8 + 8;      // [-200, 200] => [0, 400]
+    int temp = (output + 2*NEG) / 8 + BOTTOM;      // [-200, 200] => [0, 400]
     
-    if (temp > 8) {
+    if (temp > BOTTOM) {
         dac.setVoltage(temp, false);
     } else {
-        dac.setVoltage(8, false);
+        dac.setVoltage(BOTTOM, false);
     }
 
     // Carrier iterator
