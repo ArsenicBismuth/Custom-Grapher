@@ -342,13 +342,6 @@ public class SimpleWaveform extends View {
             if (modeAmp == MODE_AMP_ABSOLUTE) {
                 barPoints.amplitudePxTop = Math.abs(barPoints.amplitudePx);
                 barPoints.amplitudePxBottom = -Math.abs(barPoints.amplitudePx);
-//                if (barPointsF.amplitudePx > 0) {
-//                    barPointsF.amplitudePxTop = barPointsF.amplitudePx;
-//                    barPointsF.amplitudePxBottom = -barPointsF.amplitudePx;
-//                } else {
-//                    barPointsF.amplitudePxTop = -barPointsF.amplitudePx;
-//                    barPointsF.amplitudePxBottom = barPointsF.amplitudePx;
-//                }
             } else {
                 if (barPoints.amplitudePx > 0) {
                     barPoints.amplitudePxTop = barPoints.amplitudePx;

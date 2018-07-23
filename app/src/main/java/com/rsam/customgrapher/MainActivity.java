@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
         //  1. LPF/HPF to separate 2 signals (not narrow)
         //  2. Rectify & LPF (not narrow)
         //  3. Downsample a lot to be able to implement very narrow BPF or low-freq HPF
-    // TODO BPM calculation
+    // BPM calculation
     // TODO SPO2 calculation
     // TODO cleaning up on published version
         // Remove advanced profiler & logging
@@ -545,11 +545,6 @@ public class MainActivity extends AppCompatActivity /*implements Visualizer.OnDa
                             @Override
                             public void run() {
                                 // TODO Just a marking
-//                                addWaveArray(filLast2A.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast2B.getBuffer(), simpleWaveformB, downSample);
-
-//                                addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
-//                                addWaveArray(filLast1B.getBuffer(), simpleWaveformB, downSample);
 
                                 addWaveArray(filLast1A.getBuffer(), simpleWaveformA, downSample);
                                 addWaveData(bpm * 1000, simpleWaveformB);

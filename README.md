@@ -13,6 +13,8 @@ Current implementation specified as:
    
 Downsample specs are written respective to previous condition.
 
+[TODO] Test 2 hi-freq sinusoids, one is half amplitude the other
+
 1. Read analog data for Hb and HbO2 alternately
    - 4 states for each cycle: R, off, IR, off
    - The off state can be used to inspect offset

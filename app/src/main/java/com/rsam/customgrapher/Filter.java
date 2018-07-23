@@ -11,9 +11,7 @@ public class Filter {
 	private double[] b = {0};
 	private boolean rectified = false;
 
-	private int buffSize = 4;							    // Length of the buffer linked list
-//  public LinkedList<Double> buffer = new LinkedList<>();	// To store output continuously
-//	public double[] bufferArr;
+	private int buffSize = 4;	// Length of the buffer
     private double[] buffer;
     private int ib = 0;         // Buffer pointer
 
