@@ -39,7 +39,7 @@ Downsample specs are written respective to previous condition.
 7. Decrease 8x so that each has amplitude < half the full range
 8. Mix ch1 & ch2 and transmit
 
-Testing rate specs for the scheme abovet:
+Testing rate specs for the scheme above:
    
    - Common single loop speed (15/16) = ~2.86kHz - 6.6kHz
    - Slowest single loop speed (1/16) = ~300Hz - 370Hz
@@ -58,7 +58,7 @@ Receive a single signal containing two channels through the audio jack.
    - Separate Hb,   ch2 (200Hz): FIR, 150 / 190, -60dB => 28th order
 3. Downsample by 2x => 245Hz
 4. Demodulate each
-   - Rectify (actually reqires the sampling rate to be more than 2x[2x] of all the carriers)
+   - Rectify (actually requires the sampling rate to be more than 2x[2x] of all the carriers)
    - FIR, 5 \ 10, -40dB => 83th order
 5. Downsample by 5x => 49Hz
 6. Noise & offset filtering
@@ -70,7 +70,7 @@ Receive a single signal containing two channels through the audio jack.
      - Offset: Copy Arduino Filter
 7. Downsample by 7x => 7Hz
 8. [Cancelled] BPM Calculation
-   - FIR, ? \ 2, -30dB, 30th orrder => 1 \ 2
+   - FIR, ? \ 2, -30dB, 30th order => 1 \ 2
    - Check for rising zero-crossing, averaged at min every 4 waves
 	 
 **Extras**
