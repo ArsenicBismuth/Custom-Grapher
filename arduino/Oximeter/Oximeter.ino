@@ -131,8 +131,8 @@ void result() {
 
     // Only max 1 or 2 serial prints may be activated
 //    Serial.print(inA); Serial.print(" ");
-    Serial.print(filA); Serial.print(" ");
-//    Serial.print(interA); Serial.print(" ");
+//    Serial.print(filA); Serial.print(" ");
+    Serial.print(interA); Serial.print(" ");
 //    Serial.print(interO);  Serial.print(" ");
     Serial.println();
 }

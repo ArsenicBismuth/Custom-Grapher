@@ -1,4 +1,10 @@
 # CustomGrapher
+
+![Android UI](docs/img/ss01.png)
+![Full Device](docs/img/ph01.jpg)
+
+*Complete documentations can be seen in `docs/` directory.*
+
 ### Full Scheme
 **MCU** [Fs = ~200Hz]
 Obtain HbO2 and Hb signal from sensor and transmit them both through a single signal.
